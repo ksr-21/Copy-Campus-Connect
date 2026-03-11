@@ -20,7 +20,12 @@ app.use('/api/posts', require('./routes/postRoutes'));
 
 // Root route for health check
 app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to Campus Connect API' });
+  const mongoose = require('mongoose');
+  const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
+  res.json({
+    message: 'Welcome to Campus Connect API',
+    database: dbStatus,
+  });
 });
 
 app.use(errorHandler);
