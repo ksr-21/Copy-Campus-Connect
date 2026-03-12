@@ -16,38 +16,49 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-// The global `firebase` object is guaranteed to exist here due to the script loading order.
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
+let auth: any = null;
+let db: any = null;
+let storage: any = null;
+let FieldValue: any = null;
 
-// Initialize services
-const db = firebase.firestore();
-
-// Configure Firestore settings
-// Using experimentalForceLongPolling is recommended for environments with restrictive networks (like corporate firewalls or some web containers)
-// We wrap in try-catch because settings can only be called once per instance.
+// Initialize Firebase with safety checks
 try {
-    db.settings({
-        experimentalForceLongPolling: true,
-        ignoreUndefinedProperties: true
-    });
-} catch (e) {
-    console.debug("Firestore settings already applied.");
+    if (typeof firebase !== 'undefined') {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+
+        // Initialize services
+        db = firebase.firestore();
+
+        // Configure Firestore settings
+        try {
+            db.settings({
+                experimentalForceLongPolling: true,
+                ignoreUndefinedProperties: true
+            });
+        } catch (e) {
+            console.debug("Firestore settings already applied.");
+        }
+
+        // Enable offline persistence
+        db.enablePersistence({ synchronizeTabs: true })
+          .catch((err: any) => {
+              if (err.code == 'failed-precondition') {
+                  console.warn('Persistence failed: Multiple tabs open');
+              } else if (err.code == 'unimplemented') {
+                  console.warn('Persistence failed: Not supported');
+              }
+          });
+
+        auth = firebase.auth();
+        storage = firebase.storage();
+        FieldValue = firebase.firestore.FieldValue;
+    } else {
+        console.warn("Firebase script not loaded. Firebase services will be unavailable.");
+    }
+} catch (error) {
+    console.error("Firebase failed to initialize. Check your configuration.", error);
 }
 
-// Enable offline persistence
-db.enablePersistence({ synchronizeTabs: true })
-  .catch((err: any) => {
-      if (err.code == 'failed-precondition') {
-          console.warn('Persistence failed: Multiple tabs open');
-      } else if (err.code == 'unimplemented') {
-          console.warn('Persistence failed: Not supported');
-      }
-  });
-
-export const auth = firebase.auth();
-export { db };
-export const storage = firebase.storage();
-export const FieldValue = firebase.firestore.FieldValue;
+export { auth, db, storage, FieldValue };

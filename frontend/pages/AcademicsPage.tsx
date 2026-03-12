@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { User, Course, Notice, DepartmentChat, Message, AttendanceStatus, Feedback, College } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
@@ -213,7 +214,7 @@ const StudentAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
 
     return (
         <div className="flex flex-col h-screen bg-background">
-             <Header currentUser={currentUser} onLogout={() => auth.signOut().then(() => onNavigate('#/'))} onNavigate={onNavigate} currentPath={props.currentPath} />
+             <Header currentUser={currentUser} onLogout={() => logout(onNavigate)} onNavigate={onNavigate} currentPath={props.currentPath} />
              <main className="flex-1 p-4 overflow-y-auto container mx-auto max-w-4xl">
                 <h1 className="text-2xl font-bold mb-6">My Academics</h1>
 
@@ -260,10 +261,7 @@ const FacultyAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
     const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState(false);
     const [isCreateNoticeModalOpen, setIsCreateNoticeModalOpen] = useState(false);
 
-    const handleLogout = async () => {
-        await auth.signOut();
-        onNavigate('#/');
-    };
+    const handleLogout = () => { logout(onNavigate); };
 
     if ((currentUser.tag === 'Teacher' || currentUser.tag === 'HOD/Dean') && currentUser.isApproved === false) {
         return (

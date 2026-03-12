@@ -1,6 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import type { User, Post } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
@@ -24,7 +25,7 @@ interface EventDetailPageProps {
 const EventDetailPage: React.FC<EventDetailPageProps> = ({ eventId, posts, users, currentUser, onNavigate, onRegister, onUnregister, onDeleteEvent }) => {
     const [activeTab, setActiveTab] = useState<'about' | 'attendees'>('about');
 
-    const handleLogout = async () => { await auth.signOut(); onNavigate('#/'); };
+    const handleLogout = () => { logout(onNavigate); };
 
     const event = useMemo(() => posts.find(p => p.id === eventId), [posts, eventId]);
 

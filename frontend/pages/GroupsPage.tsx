@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { User, Group, GroupCategory, GroupPrivacy } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import GroupCard from '../components/GroupCard';
 import CreateGroupModal from '../components/CreateGroupModal';
@@ -21,10 +22,7 @@ interface GroupsPageProps {
 const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser, groups, onNavigate, currentPath, onCreateGroup, onJoinGroupRequest, onToggleFollowGroup }) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    onNavigate('#/');
-  };
+    const handleLogout = () => { logout(onNavigate); };
 
   const { myGroups, discoverGroups } = useMemo(() => {
     const myGroupIds = new Set([...(currentUser.followingGroups || []), ...groups.filter(g => g.memberIds.includes(currentUser.id)).map(g => g.id)]);

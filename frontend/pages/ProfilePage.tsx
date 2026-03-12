@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { User, Post, Group, ReactionType, Achievement, UserTag, College, Course } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import Feed from '../components/Feed';
 import CreatePost from '../components/CreatePost';
@@ -118,10 +119,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
         return score;
     }, [profileUser]);
 
-    const handleLogout = async () => {
-        await auth.signOut();
-        onNavigate('#/');
-    };
+    const handleLogout = () => { logout(onNavigate); };
 
     const handleAddInterestSubmit = (e: React.FormEvent) => {
         e.preventDefault();

@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { User, College } from '../types';
+import { logout } from '../utils/authUtils';
 import { BuildingIcon, MailIcon, PlusIcon, UsersIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, SearchIcon, TrashIcon, CloseIcon, ClockIcon } from '../components/Icons';
 import Header from '../components/Header';
 import { auth } from '../firebase';
@@ -27,10 +28,7 @@ const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ colleges, users, onCrea
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    onNavigate('#/');
-  };
+    const handleLogout = () => { logout(onNavigate); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -12,6 +12,7 @@ import CreatePostModal from '../components/CreatePostModal';
 import StoryCreatorModal from '../components/StoryCreatorModal';
 import StoryViewerModal from '../components/StoryViewerModal';
 import { TrendingUpIcon, ChevronDownIcon } from '../components/Icons';
+import { logout } from '../utils/authUtils';
 interface HomePageProps {
   currentUser: User;
   users: { [key: string]: User };
@@ -54,8 +55,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
     const canPost = currentUser.isApproved !== false;
 
     const handleLogout = () => {
-        props.onLogout();
-        onNavigate('#/');
+        logout(onNavigate);
     };
 
     const handleShowNewPosts = () => {

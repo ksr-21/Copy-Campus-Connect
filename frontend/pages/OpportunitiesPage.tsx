@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { User, Post, CareerRoadmap, Mentor, Project, SkillBadge } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import CreateOpportunityModal from '../components/CreateOpportunityModal';
@@ -37,10 +38,7 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = ({ currentUser, user
   const [isCreateRoadmapModalOpen, setIsCreateRoadmapModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    onNavigate('#/');
-  };
+    const handleLogout = () => { logout(onNavigate); };
 
   const opportunities = posts.filter(p => p.isOpportunity).sort((a, b) => b.timestamp - a.timestamp);
   const jobListings = opportunities.filter(p => p.opportunityDetails?.type !== 'Campus Role' && p.opportunityDetails?.type !== 'Volunteer');

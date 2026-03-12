@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import type { User, Notice } from '../types';
 import Header from '../components/Header';
+import { logout } from '../utils/authUtils';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
 import { auth } from '../firebase';
@@ -110,10 +111,7 @@ const NoticeBoardPage: React.FC<NoticeBoardPageProps> = (props) => {
     const { currentUser, onNavigate, currentPath, notices, users, onCreateNotice, onDeleteNotice } = props;
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-    const handleLogout = async () => {
-        await auth.signOut();
-        onNavigate('#/');
-    };
+    const handleLogout = () => { logout(onNavigate); };
 
     return (
         <div className="bg-muted/50 min-h-screen">

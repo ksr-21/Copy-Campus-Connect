@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { User, Post, Group, ReactionType } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Feed from '../components/Feed';
@@ -30,10 +31,7 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'people' | 'groups' | 'posts'>('all');
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    onNavigate('#/');
-  };
+    const handleLogout = () => { logout(onNavigate); };
 
   const usersMap = useMemo(() => Object.fromEntries(users.map(u => [u.id, u])), [users]);
 
