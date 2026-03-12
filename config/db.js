@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
+let cachedDb = null;
+
 const connectDB = async () => {
+  if (cachedDb) {
+    console.log('Using cached MongoDB connection');
+    return cachedDb;
+  }
+
   try {
     const mongoURI = process.env.MONGO_URI;
     if (!mongoURI) {
@@ -9,12 +16,14 @@ const connectDB = async () => {
     }
 
     const conn = await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+      serverSelectionTimeoutMS: 5000,
     });
+
+    cachedDb = conn;
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+    return conn;
   } catch (error) {
     console.error(`Error: ${error.message}`);
-    // In serverless environments, we might not want to exit the process
     if (process.env.NODE_ENV !== 'production') {
       process.exit(1);
     }

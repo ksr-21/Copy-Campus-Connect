@@ -181,33 +181,34 @@ const App = () => {
   };
 
   const handleReaction = async (postId: string, reaction: any) => {
-      const post = posts.find(p => p.id === postId);
-      if (!post || !currentUser) return;
-      const currentReactions = post.reactions || {};
-      const userReactions = currentReactions[reaction] || [];
-
-      if (userReactions.includes(currentUser.id)) {
-          await db.collection('posts').doc(postId).update({
-              [`reactions.${reaction}`]: FieldValue.arrayRemove(currentUser.id)
-          });
-      } else {
-          await db.collection('posts').doc(postId).update({
-              [`reactions.${reaction}`]: FieldValue.arrayUnion(currentUser.id)
-          });
+      if (!currentUser) return;
+      try {
+          const updatedLikes = await api.post(`/posts/${postId}/like`, {}, currentUser.token);
+          setPosts(posts.map(p => p.id === postId ? {
+              ...p,
+              reactions: { ...p.reactions, like: updatedLikes }
+          } : p));
+      } catch (err) {
+          console.error("Failed to reaction", err);
       }
   };
 
   const handleAddComment = async (postId: string, text: string) => {
       if (!currentUser) return;
-      const newComment = {
-          id: Date.now().toString(),
-          authorId: currentUser.id,
-          text,
-          timestamp: Date.now()
-      };
-      await db.collection('posts').doc(postId).update({
-          comments: FieldValue.arrayUnion(newComment)
-      });
+      try {
+          const updatedComments = await api.post(`/posts/${postId}/comment`, { text }, currentUser.token);
+          setPosts(posts.map(p => p.id === postId ? {
+              ...p,
+              comments: updatedComments.map((c: any) => ({
+                  id: c._id,
+                  authorId: c.user,
+                  text: c.text,
+                  timestamp: new Date(c.createdAt).getTime()
+              }))
+          } : p));
+      } catch (err) {
+          console.error("Failed to add comment", err);
+      }
   };
 
   const handleDeleteComment = async (postId: string, commentId: string) => {
