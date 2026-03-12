@@ -1,6 +1,7 @@
 const express = require('express');
 const dotenv = require('dotenv').config();
 const cors = require('cors');
+const path = require('path');
 const connectDB = require('./config/db');
 const { errorHandler } = require('./middleware/errorMiddleware');
 const port = process.env.PORT || 5000;
@@ -18,10 +19,19 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/posts', require('./routes/postRoutes'));
 
-// Root route for health check
-app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to Campus Connect API' });
-});
+// Serve frontend
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '/frontend/dist')));
+
+  app.get('*', (req, res) =>
+    res.sendFile(path.resolve(__dirname, 'frontend', 'dist', 'index.html'))
+  );
+} else {
+  // Root route for health check
+  app.get('/', (req, res) => {
+    res.json({ message: 'Welcome to Campus Connect API' });
+  });
+}
 
 app.use(errorHandler);
 

@@ -3,11 +3,11 @@ const User = require('../models/User');
 
 const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, tag, department, collegeId, yearOfStudy, rollNo, division } = req.body;
 
     if (!name || !email || !password) {
       res.status(400);
-      throw new Error('Please add all fields');
+      throw new Error('Please add all required fields (name, email, password)');
     }
 
     const userExists = await User.findOne({ email });
@@ -21,6 +21,14 @@ const registerUser = async (req, res, next) => {
       name,
       email,
       password,
+      tag,
+      department,
+      collegeId,
+      yearOfStudy,
+      rollNo,
+      division,
+      isRegistered: true,
+      isApproved: tag === 'Super Admin' || tag === 'Director' ? false : true, // Auto approve students/teachers for now, or follow logic
     });
 
     if (user) {
@@ -28,6 +36,9 @@ const registerUser = async (req, res, next) => {
         _id: user.id,
         name: user.name,
         email: user.email,
+        tag: user.tag,
+        department: user.department,
+        collegeId: user.collegeId,
         token: generateToken(user._id),
       });
     } else {
@@ -50,6 +61,9 @@ const loginUser = async (req, res, next) => {
         _id: user.id,
         name: user.name,
         email: user.email,
+        tag: user.tag,
+        department: user.department,
+        collegeId: user.collegeId,
         token: generateToken(user._id),
       });
     } else {

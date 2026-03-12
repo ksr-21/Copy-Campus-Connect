@@ -24,6 +24,30 @@ const userSchema = mongoose.Schema(
       type: String,
       default: '',
     },
+    department: {
+      type: String,
+      default: '',
+    },
+    tag: {
+      type: String,
+      enum: ['Student', 'Teacher', 'HOD/Dean', 'Director', 'Super Admin'],
+      default: 'Student',
+    },
+    collegeId: {
+      type: String,
+      default: '',
+    },
+    isApproved: {
+      type: Boolean,
+      default: false,
+    },
+    isRegistered: {
+      type: Boolean,
+      default: false,
+    },
+    yearOfStudy: Number,
+    rollNo: String,
+    division: String,
   },
   {
     timestamps: true,
