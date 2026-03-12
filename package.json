@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "frontend": "cd frontend && npm run dev",
+    "install-all": "npm install && cd frontend && npm install",
+    "fullstack": "npm run dev & npm run frontend"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
