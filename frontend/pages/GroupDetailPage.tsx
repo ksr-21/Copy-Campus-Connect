@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import type { User, Post, Group, ReactionType, Story, GroupResource, GroupCategory, GroupPrivacy } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Feed from '../components/Feed';
@@ -60,10 +61,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     const [newResourceLink, setNewResourceLink] = useState('');
     const [isAddingResource, setIsAddingResource] = useState(false);
 
-    const handleLogout = async () => {
-        await auth.signOut();
-        onNavigate('#/');
-    };
+    const handleLogout = () => { logout(onNavigate); };
 
     useEffect(() => {
         if (activeTab === 'chat') {
@@ -110,6 +108,10 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     const handleAddResource = async (e: React.FormEvent) => {
         e.preventDefault();
         if (newResourceTitle.trim() && newResourceLink.trim()) {
+            if (!db || !FieldValue) {
+                alert("Database services are currently unavailable.");
+                return;
+            }
             const newResource: GroupResource = {
                 id: Date.now().toString(),
                 title: newResourceTitle,
@@ -131,6 +133,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
 
     const handleDeleteResource = async (resource: GroupResource) => {
         if(window.confirm("Remove this resource?")) {
+            if (!db || !FieldValue) return;
              await db.collection('groups').doc(group.id).update({
                 resources: FieldValue.arrayRemove(resource)
             });
@@ -138,6 +141,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     }
 
     const handleToggleVisibility = async (setting: keyof NonNullable<Group['visibilitySettings']>) => {
+        if (!db) return;
         const currentSettings = group.visibilitySettings || defaultVisibility;
         const newSettings = { ...currentSettings, [setting]: !currentSettings[setting] };
 

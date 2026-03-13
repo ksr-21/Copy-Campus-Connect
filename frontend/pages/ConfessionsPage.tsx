@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { User, Post, Group, ReactionType } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Feed from '../components/Feed';
@@ -32,10 +33,7 @@ const ConfessionsPage: React.FC<ConfessionsPageProps> = (props) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'love' | 'funny' | 'sad' | 'chaos' | 'deep'>('all');
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    onNavigate('#/');
-  };
+    const handleLogout = () => { logout(onNavigate); };
 
   const filteredPosts = useMemo(() => {
       let p = posts.filter(post => post.isConfession).sort((a, b) => b.timestamp - a.timestamp);

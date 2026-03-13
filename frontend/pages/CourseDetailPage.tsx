@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { User, Course, AttendanceStatus, Message, Assignment, Note, AttendanceRecord } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
@@ -94,6 +95,11 @@ const AddAssignmentModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean, onClo
             let finalFileName = link ? 'External Link' : '';
 
             if (file) {
+                if (!storage) {
+                    setErrorMessage("Storage service is currently unavailable.");
+                    setIsUploading(false);
+                    return;
+                }
                 const storageRef = storage.ref();
                 const fileRef = storageRef.child(`assignments/${Date.now()}_${file.name}`);
                 const metadata = { contentType: file.type };
@@ -294,6 +300,11 @@ const AddMaterialModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean, onClose
             let finalFileName = link ? 'External Link' : '';
 
             if (file) {
+                if (!storage) {
+                    setErrorMessage("Storage service is currently unavailable.");
+                    setIsUploading(false);
+                    return;
+                }
                 const storageRef = storage.ref();
                 const fileRef = storageRef.child(`materials/${Date.now()}_${file.name}`);
                 const metadata = { contentType: file.type };
@@ -460,10 +471,7 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
     const isCourseFaculty = course.facultyId === currentUser.id;
     const canEdit = isFaculty && (isCourseFaculty || currentUser.tag === 'HOD/Dean' || currentUser.tag === 'Director');
 
-    const handleLogout = async () => {
-        await auth.signOut();
-        onNavigate('#/');
-    };
+    const handleLogout = () => { logout(onNavigate); };
 
     // --- Attendance Logic ---
     useEffect(() => {

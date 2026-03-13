@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { User, Course, Notice, College, UserTag } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
@@ -735,10 +736,7 @@ const HodPage: React.FC<HodPageProps> = (props) => {
         avgAttendance: 85 // Placeholder
     };
 
-    const handleLogout = async () => {
-        await auth.signOut();
-        onNavigate('#/');
-    };
+    const handleLogout = () => { logout(onNavigate); };
 
     const handleCreateClass = (data: { year: number; division: string }) => {
         if (!college) return;

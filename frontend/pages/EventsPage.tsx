@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { User, Post, Group, ReactionType } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import CreatePostModal from '../components/CreatePostModal';
@@ -100,10 +101,7 @@ const EventsPage: React.FC<EventsPageProps> = (props) => {
   const [timeFilter, setTimeFilter] = useState<'upcoming' | 'today' | 'week' | 'past'>('upcoming');
   const [categoryFilter, setCategoryFilter] = useState('All');
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    onNavigate('#/');
-  };
+    const handleLogout = () => { logout(onNavigate); };
 
   const filteredEvents = useMemo(() => {
       let filtered = events;

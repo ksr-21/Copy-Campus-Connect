@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import type { User, PersonalNote } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import { auth } from '../firebase';
@@ -90,10 +91,7 @@ const PersonalNotesPage: React.FC<PersonalNotesPageProps> = (props) => {
 
     const selectedNote = useMemo(() => notes.find(n => n.id === selectedNoteId), [notes, selectedNoteId]);
 
-    const handleLogout = async () => {
-        await auth.signOut();
-        onNavigate('#/');
-    };
+    const handleLogout = () => { logout(onNavigate); };
 
     const handleSaveNewNote = (title: string, content: string) => {
         onCreateNote(title, content);

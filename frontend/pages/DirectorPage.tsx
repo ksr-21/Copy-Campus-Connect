@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { User, Post, Group, ReactionType, Course, Notice, UserTag, College } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
@@ -398,10 +399,7 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
     // Department State
     const [newDeptName, setNewDeptName] = useState('');
 
-    const handleLogout = async () => {
-        await auth.signOut();
-        onNavigate('#/');
-    };
+    const handleLogout = () => { logout(onNavigate); };
 
     const college = colleges.find(c => c.id === currentUser.collegeId);
 

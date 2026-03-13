@@ -1,12 +1,14 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from './api';
+import { auth, db, storage, FieldValue } from './firebase';
 import type { User, Post, Group, Story, Course, Notice, Conversation, College, PersonalNote, UserTag, GroupCategory, GroupPrivacy, AttendanceRecord, Note, Assignment } from './types';
 
 import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
+import { logout } from './utils/authUtils';
 import GroupsPage from './pages/GroupsPage';
 import GroupDetailPage from './pages/GroupDetailPage';
 import EventsPage from './pages/EventsPage';
@@ -39,6 +41,67 @@ const App = () => {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
+
+  // 0. Listen to Firebase Realtime Data (Conditional)
+  useEffect(() => {
+    if (!db || !currentUser) return;
+
+    // Users
+    const unsubUsers = db.collection('users').onSnapshot((snapshot: any) => {
+        const usersData: { [key: string]: User } = {};
+        snapshot.forEach((doc: any) => {
+            const data = doc.data();
+            usersData[doc.id] = { ...data, id: doc.id };
+        });
+        setUsers(usersData);
+    });
+
+    // Groups
+    const unsubGroups = db.collection('groups').onSnapshot((snapshot: any) => {
+        const groupsData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
+        setGroups(groupsData);
+    });
+
+    // Stories
+    const unsubStories = db.collection('stories').onSnapshot((snapshot: any) => {
+        const storiesData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
+        setStories(storiesData);
+    });
+
+    // Courses
+    const unsubCourses = db.collection('courses').onSnapshot((snapshot: any) => {
+        const coursesData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
+        setCourses(coursesData);
+    });
+
+    // Notices
+    const unsubNotices = db.collection('notices').onSnapshot((snapshot: any) => {
+        const noticesData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
+        setNotices(noticesData);
+    });
+
+    // Conversations
+    const unsubConvos = db.collection('conversations').onSnapshot((snapshot: any) => {
+        const convosData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
+        setConversations(convosData);
+    });
+
+    // Colleges
+    const unsubColleges = db.collection('colleges').onSnapshot((snapshot: any) => {
+        const collegesData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
+        setColleges(collegesData);
+    });
+
+    return () => {
+        unsubUsers();
+        unsubGroups();
+        unsubStories();
+        unsubCourses();
+        unsubNotices();
+        unsubConvos();
+        unsubColleges();
+    };
+  }, [currentUser]);
 
   // Sync browser hash with currentPath state
   useEffect(() => {
@@ -212,10 +275,14 @@ const App = () => {
   };
 
   const handleDeleteComment = async (postId: string, commentId: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       const post = posts.find(p => p.id === postId);
       if (!post) return;
       const commentToDelete = post.comments.find(c => c.id === commentId);
-      if (commentToDelete) {
+      if (commentToDelete && FieldValue) {
           await db.collection('posts').doc(postId).update({
               comments: FieldValue.arrayRemove(commentToDelete)
           });
@@ -223,6 +290,10 @@ const App = () => {
   };
 
   const handleToggleSavePost = async (postId: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       if (currentUser.savedPosts?.includes(postId)) {
           await db.collection('users').doc(currentUser.id).update({
@@ -236,6 +307,10 @@ const App = () => {
   };
 
   const handleSharePost = async (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group', id?: string }) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       const sharedPostInfo = {
           originalId: originalPost.id,
@@ -270,6 +345,10 @@ const App = () => {
 
   // Stories
   const handleAddStory = async (storyDetails: any) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       const newStory = {
           ...storyDetails,
@@ -282,13 +361,17 @@ const App = () => {
   };
 
   const handleMarkStoryAsViewed = async (storyId: string) => {
-      if (!currentUser) return;
+      if (!db || !FieldValue || !currentUser) return;
       await db.collection('stories').doc(storyId).update({
           viewedBy: FieldValue.arrayUnion(currentUser.id)
       });
   };
 
   const handleDeleteStory = async (storyId: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('stories').doc(storyId).delete();
   };
 
@@ -300,6 +383,7 @@ const App = () => {
   // Chat
   const handleCreateOrOpenConversation = async (otherUserId: string): Promise<string> => {
       if (!currentUser) throw new Error("Not logged in");
+      if (!db) throw new Error("Database unavailable");
       const existing = conversations.find(c => !c.isGroupChat && c.participantIds.includes(currentUser.id) && c.participantIds.includes(otherUserId));
       if (existing) return existing.id;
 
@@ -312,6 +396,10 @@ const App = () => {
   };
 
   const handleSendMessage = async (conversationId: string, text: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       const newMessage = {
           id: Date.now().toString(),
@@ -325,6 +413,10 @@ const App = () => {
   };
 
   const handleDeleteMessagesForEveryone = async (conversationId: string, messageIds: string[]) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       const convo = conversations.find(c => c.id === conversationId);
       if (!convo) return;
       const updatedMessages = convo.messages.filter(m => !messageIds.includes(m.id));
@@ -332,6 +424,10 @@ const App = () => {
   };
 
   const handleDeleteMessagesForSelf = async (conversationId: string, messageIds: string[]) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       const convo = conversations.find(c => c.id === conversationId);
       if (!convo) return;
       const updatedMessages = convo.messages.map(m => {
@@ -344,6 +440,10 @@ const App = () => {
   };
 
   const handleDeleteConversations = async (conversationIds: string[]) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       for (const id of conversationIds) {
           await db.collection('conversations').doc(id).delete();
       }
@@ -351,6 +451,10 @@ const App = () => {
 
   // Groups
   const handleCreateGroup = async (groupDetails: any) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       const newGroup = {
           ...groupDetails,
@@ -362,6 +466,10 @@ const App = () => {
   };
 
   const handleJoinGroupRequest = async (groupId: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       const group = groups.find(g => g.id === groupId);
       if (group?.privacy === 'public') {
@@ -372,6 +480,10 @@ const App = () => {
   };
 
   const handleApproveJoinRequest = async (groupId: string, userId: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('groups').doc(groupId).update({
           pendingMemberIds: FieldValue.arrayRemove(userId),
           memberIds: FieldValue.arrayUnion(userId)
@@ -379,12 +491,20 @@ const App = () => {
   };
 
   const handleDeclineJoinRequest = async (groupId: string, userId: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('groups').doc(groupId).update({
           pendingMemberIds: FieldValue.arrayRemove(userId)
       });
   };
 
   const handleToggleFollowGroup = async (groupId: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       const isFollowing = currentUser.followingGroups?.includes(groupId);
       if (isFollowing) {
@@ -397,14 +517,26 @@ const App = () => {
   };
 
   const handleUpdateGroup = async (groupId: string, data: any) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('groups').doc(groupId).update(data);
   };
 
   const handleDeleteGroup = async (groupId: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('groups').doc(groupId).delete();
   };
 
   const handleSendGroupMessage = async (groupId: string, text: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       const newMessage = {
           id: Date.now().toString(),
@@ -418,11 +550,19 @@ const App = () => {
   };
 
   const handleRemoveGroupMember = async (groupId: string, memberId: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('groups').doc(groupId).update({ memberIds: FieldValue.arrayRemove(memberId) });
   };
 
   // Profile
   const handleAddAchievement = async (achievement: any) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       await db.collection('users').doc(currentUser.id).update({
           achievements: FieldValue.arrayUnion(achievement)
@@ -430,6 +570,10 @@ const App = () => {
   };
 
   const handleAddInterest = async (interest: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       await db.collection('users').doc(currentUser.id).update({
           interests: FieldValue.arrayUnion(interest)
@@ -437,10 +581,14 @@ const App = () => {
   };
 
   const handleUpdateProfile = async (updateData: any, avatarFile?: File | null) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       let avatarUrl = currentUser.avatarUrl;
 
-      if (avatarFile) {
+      if (avatarFile && storage) {
           const storageRef = storage.ref().child(`avatars/${currentUser.id}`);
           const snapshot = await storageRef.put(avatarFile);
           avatarUrl = await snapshot.ref.getDownloadURL();
@@ -454,6 +602,10 @@ const App = () => {
 
   // Academics & Courses
   const handleCreateCourse = async (courseData: any) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       await db.collection('courses').add({
           facultyId: currentUser.id, // Default to creator, but allow override
@@ -463,14 +615,26 @@ const App = () => {
   };
 
   const handleUpdateCourse = async (courseId: string, data: any) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('courses').doc(courseId).update(data);
   };
 
   const handleDeleteCourse = async (courseId: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('courses').doc(courseId).delete();
   };
 
   const handleRequestToJoinCourse = async (courseId: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       await db.collection('courses').doc(courseId).update({
           pendingStudents: FieldValue.arrayUnion(currentUser.id)
@@ -478,11 +642,19 @@ const App = () => {
   };
 
   const handleUpdateCourseFaculty = async (courseId: string, newFacultyId: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('courses').doc(courseId).update({ facultyId: newFacultyId });
   };
 
   // Notices
   const handleCreateNotice = async (noticeData: any) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       await db.collection('notices').add({
           ...noticeData,
@@ -493,11 +665,19 @@ const App = () => {
   };
 
   const handleDeleteNotice = async (noticeId: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('notices').doc(noticeId).delete();
   };
 
   // Admin/HOD User Management
   const handleCreateUser = async (userData: any, password?: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       const newRef = db.collection('users').doc();
       // If isRegistered is passed (e.g. true), respect it. Otherwise default to false.
       const isRegistered = userData.isRegistered !== undefined ? userData.isRegistered : false;
@@ -513,6 +693,7 @@ const App = () => {
   };
 
   const handleCreateUsersBatch = async (usersData: any[]) => {
+      if (!db) return { successCount: 0, errors: ["Database unavailable"] };
       const chunkSize = 450;
       let successCount = 0;
       const errors: any[] = [];
@@ -549,36 +730,68 @@ const App = () => {
   };
 
   const handleApproveTeacherRequest = async (userId: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('users').doc(userId).update({ isApproved: true });
   };
 
   const handleDeclineTeacherRequest = async (userId: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('users').doc(userId).delete();
   };
 
   const handleApproveHodRequest = async (userId: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('users').doc(userId).update({ isApproved: true });
   };
 
   const handleDeclineHodRequest = async (userId: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('users').doc(userId).delete();
   };
 
   const onDeleteUser = async (userId: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('users').doc(userId).delete();
   };
 
   const onToggleFreezeUser = async (userId: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       const user = users[userId];
       await db.collection('users').doc(userId).update({ isFrozen: !user.isFrozen });
   };
 
   const onUpdateUserRole = async (userId: string, updateData: { tag: UserTag, department: string }) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('users').doc(userId).update(updateData);
   }
 
   // Super Admin
   const handleCreateCollegeAdmin = async (collegeName: string, email: string, password: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       try {
           const normalizedEmail = email.toLowerCase();
           // 1. Create the User Invite Document first to get an ID
@@ -614,6 +827,10 @@ const App = () => {
   };
 
   const handleApproveDirector = async (directorId: string, collegeName: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       try {
           if (!currentUser) {
               alert("Session expired. Please refresh.");
@@ -637,7 +854,7 @@ const App = () => {
           await db.collection('users').doc(directorId).update({
               isApproved: true,
               collegeId: collegeRef.id,
-              requestedCollegeName: FieldValue.delete()
+              requestedCollegeName: FieldValue ? FieldValue.delete() : undefined
           });
 
           alert("Director approved and college created successfully.");
@@ -649,10 +866,18 @@ const App = () => {
 
   // College Management
   const onUpdateCollegeDepartments = async (collegeId: string, departments: string[]) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('colleges').doc(collegeId).update({ departments });
   };
 
   const onUpdateCollegeClasses = async (collegeId: string, department: string, classes: any) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('colleges').doc(collegeId).update({
           [`classes.${department}`]: classes
       });
@@ -660,6 +885,10 @@ const App = () => {
 
   // Personal Notes
   const handleCreateNote = async (title: string, content: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       const newNote = {
           id: Date.now().toString(),
@@ -673,6 +902,10 @@ const App = () => {
   };
 
   const handleUpdateNote = async (noteId: string, title: string, content: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser || !currentUser.personalNotes) return;
       const updatedNotes = currentUser.personalNotes.map(n =>
           n.id === noteId ? { ...n, title, content, timestamp: Date.now() } : n
@@ -681,6 +914,10 @@ const App = () => {
   };
 
   const handleDeleteNote = async (noteId: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser || !currentUser.personalNotes) return;
       const updatedNotes = currentUser.personalNotes.filter(n => n.id !== noteId);
       await db.collection('users').doc(currentUser.id).update({ personalNotes: updatedNotes });
@@ -688,24 +925,40 @@ const App = () => {
 
   // Course management
   const handleAddNote = async (courseId: string, note: { title: string, fileUrl: string, fileName: string }) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('courses').doc(courseId).update({
           notes: FieldValue.arrayUnion({ ...note, id: Date.now().toString(), uploadedAt: Date.now() })
       });
   };
 
   const handleAddAssignment = async (courseId: string, assignment: { title: string, fileUrl: string, fileName: string, dueDate: number }) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('courses').doc(courseId).update({
           assignments: FieldValue.arrayUnion({ ...assignment, id: Date.now().toString(), postedAt: Date.now() })
       });
   };
 
   const handleTakeAttendance = async (courseId: string, record: AttendanceRecord) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('courses').doc(courseId).update({
           attendanceRecords: FieldValue.arrayUnion(record)
       });
   };
 
   const handleManageCourseRequest = async (courseId: string, studentId: string, action: 'approve' | 'reject') => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       if (action === 'approve') {
           await db.collection('courses').doc(courseId).update({
               pendingStudents: FieldValue.arrayRemove(studentId),
@@ -719,18 +972,30 @@ const App = () => {
   };
 
   const handleAddStudentsToCourse = async (courseId: string, studentIds: string[]) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('courses').doc(courseId).update({
           students: FieldValue.arrayUnion(...studentIds)
       });
   };
 
   const handleRemoveStudentFromCourse = async (courseId: string, studentId: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       await db.collection('courses').doc(courseId).update({
           students: FieldValue.arrayRemove(studentId)
       });
   };
 
   const handleSendCourseMessage = async (courseId: string, text: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       const newMessage = {
           id: Date.now().toString(),
@@ -744,6 +1009,10 @@ const App = () => {
   };
 
   const handleUpdateCoursePersonalNote = async (courseId: string, note: string) => {
+      if (!db) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       await db.collection('courses').doc(courseId).update({
           [`personalNotes.${currentUser.id}`]: note
@@ -751,6 +1020,10 @@ const App = () => {
   };
 
   const handleSaveFeedback = async (courseId: string, rating: number, comment: string) => {
+      if (!db || !FieldValue) {
+          alert("Database unavailable.");
+          return;
+      }
       if (!currentUser) return;
       const feedback = {
           studentId: currentUser.id,
@@ -977,6 +1250,7 @@ const App = () => {
             currentUser={currentUser}
             onNavigate={setCurrentPath}
             onRegister={async (eid) => {
+                if (!db || !FieldValue) return;
                 const post = posts.find(p => p.id === eid);
                 if (post) {
                     const attendees = post.eventDetails?.attendees || [];
@@ -988,6 +1262,7 @@ const App = () => {
                 }
             }}
             onUnregister={async (eid) => {
+                 if (!db || !FieldValue) return;
                  await db.collection('posts').doc(eid).update({
                     'eventDetails.attendees': FieldValue.arrayRemove(currentUser.id)
                 });
@@ -1168,11 +1443,6 @@ const App = () => {
       );
   }
 
-  const handleLogout = () => {
-      localStorage.removeItem('user');
-      window.dispatchEvent(new Event('storage'));
-  };
-
   // Default Fallback
   return (
       <HomePage
@@ -1184,7 +1454,7 @@ const App = () => {
         events={posts.filter(p => p.isEvent)}
         notices={notices}
         onNavigate={setCurrentPath}
-        onLogout={handleLogout}
+        onLogout={() => logout(setCurrentPath)}
         onAddPost={handleAddPost}
         onAddStory={handleAddStory}
         onMarkStoryAsViewed={handleMarkStoryAsViewed}

@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import type { User, Conversation } from '../types';
+import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import Avatar from '../components/Avatar';
 import ChatPanel from '../components/ChatPanel';
@@ -52,10 +53,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isLongPressRef = useRef(false);
 
-    const handleLogout = async () => {
-        await auth.signOut();
-        onNavigate('#/');
-    };
+    const handleLogout = () => { logout(onNavigate); };
 
     const handleSelectUser = async (userId: string) => {
         const convoId = await onCreateOrOpenConversation(userId);
