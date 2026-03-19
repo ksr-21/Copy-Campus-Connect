@@ -55,7 +55,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
                 <div className="flex justify-between items-center h-16">
                     {/* Logo */}
                     <div className="flex items-center space-x-4">
-                        <span className="font-bold text-xl bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent cursor-pointer" onClick={() => onNavigate('#/home')}>CampusConnect</span>
+                        <span className="font-bold text-xl bg-gradient-to-r from-primary to-indigo-700 bg-clip-text text-transparent cursor-pointer" onClick={() => onNavigate('#/home')}>CampusConnect</span>
                     </div>
 
                     {/* Center: Desktop Navigation */}
@@ -73,7 +73,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
                                     aria-label={label}
                                     title={label}
                                 >
-                                    <div className={`flex flex-col items-center justify-center p-2 rounded-lg w-20 transition-colors ${isActive ? 'bg-primary/10' : 'hover:bg-muted/50'}`}>
+                                    <div className={`flex flex-col items-center justify-center p-2 rounded-lg w-20 transition-colors ${isActive ? 'bg-primary/10' : 'hover:bg-primary/5'}`}>
                                       <IconComponent className="w-6 h-6 mb-1" />
                                       <span className="text-xs font-medium">{label}</span>
                                     </div>

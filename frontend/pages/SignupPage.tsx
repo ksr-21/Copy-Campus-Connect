@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { api } from '../api';
+import { auth, db, storage } from '../firebase';
 import type { User } from '../types';
 import { MailIcon, LockIcon, CameraIcon, ArrowLeftIcon, CheckCircleIcon, BuildingIcon, UserIcon, ShieldIcon, XCircleIcon } from '../components/Icons';
 
@@ -47,6 +47,11 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
         e.preventDefault();
         setError('');
 
+        if (!auth || !db) {
+            setError('Authentication services are unavailable.');
+            return;
+        }
+
         if (password.length < 6) {
             setError('Password must be at least 6 characters long.');
             return;
@@ -54,15 +59,29 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
 
         setIsLoading(true);
         try {
-            const data = await api.post('/auth/register', {
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+
+            let avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random`;
+            if (avatarFile && storage) {
+                const storageRef = storage.ref().child(`avatars/${user.uid}`);
+                const snapshot = await storageRef.put(avatarFile);
+                avatarUrl = await snapshot.ref.getDownloadURL();
+            }
+
+            const userData = {
+                id: user.uid,
                 name,
-                email,
-                password,
-                tag: 'Student', // Default
-                department
-            });
-            localStorage.setItem('user', JSON.stringify(data));
-            window.dispatchEvent(new Event('storage'));
+                email: email.toLowerCase(),
+                tag: 'Student',
+                department,
+                avatarUrl,
+                isApproved: true,
+                isRegistered: true,
+                createdAt: Date.now()
+            };
+
+            await db.collection('users').doc(user.uid).set(userData);
         } catch (err: any) {
             setError(err.message || 'An error occurred during signup.');
         } finally {
@@ -73,6 +92,11 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
     const handleAdminSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+
+        if (!auth || !db) {
+            setError('Authentication services are unavailable.');
+            return;
+        }
 
         if (adminSecret !== 'admin') {
             setError('Invalid Admin Secret Key.');
@@ -85,15 +109,21 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
 
         setIsLoading(true);
         try {
-            const data = await api.post('/auth/register', {
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+
+            const userData = {
+                id: user.uid,
                 name,
-                email,
-                password,
+                email: email.toLowerCase(),
                 tag: 'Super Admin',
-                department: 'Administration'
-            });
-            localStorage.setItem('user', JSON.stringify(data));
-            window.dispatchEvent(new Event('storage'));
+                department: 'Administration',
+                isApproved: true,
+                isRegistered: true,
+                createdAt: Date.now()
+            };
+
+            await db.collection('users').doc(user.uid).set(userData);
         } catch (err: any) {
              setError(err.message);
         } finally {
@@ -105,6 +135,11 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
         e.preventDefault();
         setError('');
 
+        if (!auth || !db) {
+            setError('Authentication services are unavailable.');
+            return;
+        }
+
         if (password.length < 6) {
             setError('Password must be at least 6 characters long.');
             return;
@@ -112,16 +147,22 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
 
         setIsLoading(true);
         try {
-            const data = await api.post('/auth/register', {
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+
+            const userData = {
+                id: user.uid,
                 name,
-                email,
-                password,
+                email: email.toLowerCase(),
                 tag: 'Director',
                 department: 'Administration',
-                collegeId: collegeName // Simplified
-            });
-            localStorage.setItem('user', JSON.stringify(data));
-            window.dispatchEvent(new Event('storage'));
+                requestedCollegeName: collegeName,
+                isApproved: false,
+                isRegistered: true,
+                createdAt: Date.now()
+            };
+
+            await db.collection('users').doc(user.uid).set(userData);
         } catch (err: any) {
             setError(err.message);
         } finally {

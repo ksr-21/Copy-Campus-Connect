@@ -7,7 +7,7 @@ interface WelcomePageProps {
 const WelcomePage: React.FC<WelcomePageProps> = ({ onNavigate }) => {
     return (
         <div className="min-h-screen flex items-center justify-center p-4 overflow-hidden relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800"></div>
+            <div className="absolute inset-0 bg-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800"></div>
 
             <div className="container relative z-10">
                 <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -25,13 +25,13 @@ const WelcomePage: React.FC<WelcomePageProps> = ({ onNavigate }) => {
                         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4">
                             <button
                                 onClick={() => onNavigate('#/login')}
-                                className="w-full sm:w-auto px-8 py-3 text-lg font-semibold text-primary-foreground bg-primary rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all transform hover:scale-105"
+                                className="w-full sm:w-auto px-8 py-3 text-lg font-semibold text-primary-foreground bg-primary rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all"
                             >
                                 Log In
                             </button>
                             <button
                                 onClick={() => onNavigate('#/signup')}
-                                className="w-full sm:w-auto px-8 py-3 text-lg font-semibold text-primary bg-card dark:bg-slate-800 border-2 border-primary rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all transform hover:scale-105"
+                                className="w-full sm:w-auto px-8 py-3 text-lg font-semibold text-primary bg-card dark:bg-slate-800 border-2 border-primary rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all"
                             >
                                 Sign Up
                             </button>
@@ -40,8 +40,8 @@ const WelcomePage: React.FC<WelcomePageProps> = ({ onNavigate }) => {
 
                     {/* Right Column: Abstract Shapes */}
                     <div className="hidden md:block relative h-96">
-                        <div className="absolute -top-10 -left-10 w-48 h-48 bg-primary rounded-full opacity-20 animate-pulse"></div>
-                        <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-secondary rounded-full opacity-20 animate-pulse animation-delay-2000"></div>
+                        <div className="absolute -top-10 -left-10 w-48 h-48 bg-primary rounded-full opacity-20"></div>
+                        <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-secondary rounded-full opacity-20"></div>
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
                             <div className="w-72 h-72 bg-card dark:bg-slate-800 rounded-2xl shadow-xl border border-border dark:border-slate-700 transform rotate-12">
                                 <div className="p-4">

@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { api } from './api';
 import { auth, db, storage, FieldValue } from './firebase';
 import type { User, Post, Group, Story, Course, Notice, Conversation, College, PersonalNote, UserTag, GroupCategory, GroupPrivacy, AttendanceRecord, Note, Assignment } from './types';
 
@@ -144,20 +143,31 @@ const App = () => {
       }
   }, [currentUser, currentPath]);
 
-  // 1. Auth State Listener (using LocalStorage)
+  // 1. Auth State Listener (using Firebase)
   useEffect(() => {
-    const syncAuth = () => {
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-            const userData = JSON.parse(userStr);
-            setCurrentUser(userData);
-            setAuthUserId(userData._id);
+    if (!auth || !db) {
+        setLoading(false);
+        return;
+    }
+
+    const unsubscribe = auth.onAuthStateChanged(async (user: any) => {
+        if (user) {
+            // Fetch profile from Firestore
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (userDoc.exists) {
+                const userData = { ...userDoc.data(), id: user.uid };
+                setCurrentUser(userData);
+                setAuthUserId(user.uid);
+            } else {
+                // Handle case where auth user exists but Firestore doc doesn't
+                setCurrentUser(null);
+                setAuthUserId(null);
+            }
         } else {
             setAuthUserId(null);
             setCurrentUser(null);
             // Clear other data
             setPosts([]);
-            setLoading(false);
 
             const publicPaths = ['#/', '#/login', '#/signup'];
             if (!publicPaths.includes(window.location.hash)) {
@@ -165,110 +175,98 @@ const App = () => {
             }
         }
         setLoading(false);
-    };
+    });
 
-    syncAuth();
-    window.addEventListener('storage', syncAuth);
-    return () => window.removeEventListener('storage', syncAuth);
+    return () => unsubscribe();
   }, []);
 
-  // Fetch Posts from Backend
+  // Fetch Posts from Firestore
   useEffect(() => {
-    if (!currentUser) return;
+    if (!db || !currentUser) return;
 
-    const fetchPosts = async () => {
-        try {
-            const data = await api.get('/posts', currentUser.token);
-            // Map MongoDB _id to frontend id
-            const mappedPosts = data.map((p: any) => ({
-                id: p._id,
-                authorId: p.user._id,
-                content: p.text,
-                timestamp: new Date(p.createdAt).getTime(),
-                comments: p.comments.map((c: any) => ({
-                    id: c._id,
-                    authorId: c.user,
-                    text: c.text,
-                    timestamp: new Date(c.createdAt).getTime()
-                })),
-                reactions: { like: p.likes }
-            }));
-            setPosts(mappedPosts);
-        } catch (error) {
-            console.error("Failed to fetch posts", error);
-        }
-    };
+    const unsubscribe = db.collection('posts')
+        .where('collegeId', '==', currentUser.collegeId || '')
+        .onSnapshot((snapshot: any) => {
+            const postsData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
+            // Sort client side if needed or use composite index
+            setPosts(postsData.sort((a: any, b: any) => b.timestamp - a.timestamp));
+        }, (err: any) => {
+            console.error("Posts subscription error:", err);
+            // Fallback for missing index: try without where
+            db.collection('posts').onSnapshot((snapshot: any) => {
+                 const postsData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
+                 setPosts(postsData.sort((a: any, b: any) => b.timestamp - a.timestamp));
+            });
+        });
 
-    fetchPosts();
+    return () => unsubscribe();
   }, [currentUser]);
 
-  // ... rest of the handlers
-  // Posts
+  // Posts Handlers (Firestore)
   const handleAddPost = async (postDetails: any) => {
-      if (!currentUser) return;
+      if (!db || !currentUser) return;
       try {
-          const newPost = await api.post('/posts', {
-              text: postDetails.content || postDetails.text,
-              image: postDetails.mediaUrls?.[0]
-          }, currentUser.token);
-
-          // Refresh posts (optimistic update could be done here instead)
-          const data = await api.get('/posts', currentUser.token);
-          const mappedPosts = data.map((p: any) => ({
-                id: p._id,
-                authorId: p.user._id,
-                content: p.text,
-                timestamp: new Date(p.createdAt).getTime(),
-                comments: p.comments.map((c: any) => ({
-                    id: c._id,
-                    authorId: c.user,
-                    text: c.text,
-                    timestamp: new Date(c.createdAt).getTime()
-                })),
-                reactions: { like: p.likes }
-            }));
-            setPosts(mappedPosts);
+          const newPost = {
+              ...postDetails,
+              authorId: currentUser.id,
+              timestamp: Date.now(),
+              comments: [],
+              reactions: {},
+              collegeId: currentUser.collegeId || ''
+          };
+          await db.collection('posts').add(newPost);
       } catch (err) {
           console.error("Failed to add post", err);
       }
   };
 
   const handleDeletePost = async (postId: string) => {
-      if (!currentUser) return;
+      if (!db) return;
       try {
-          await api.delete(`/posts/${postId}`, currentUser.token);
-          setPosts(posts.filter(p => p.id !== postId));
+          await db.collection('posts').doc(postId).delete();
       } catch (err) {
           console.error("Failed to delete post", err);
       }
   };
 
-  const handleReaction = async (postId: string, reaction: any) => {
-      if (!currentUser) return;
+  const handleReaction = async (postId: string, reactionType: string) => {
+      if (!db || !currentUser || !FieldValue) return;
       try {
-          const updatedLikes = await api.post(`/posts/${postId}/like`, {}, currentUser.token);
-          setPosts(posts.map(p => p.id === postId ? {
-              ...p,
-              reactions: { ...p.reactions, like: updatedLikes }
-          } : p));
+          const postRef = db.collection('posts').doc(postId);
+          const post = posts.find(p => p.id === postId);
+          if (!post) return;
+
+          const reactions = post.reactions || {};
+          const currentUsersForType = reactions[reactionType] || [];
+
+          if (currentUsersForType.includes(currentUser.id)) {
+              // Remove reaction
+              await postRef.update({
+                  [`reactions.${reactionType}`]: FieldValue.arrayRemove(currentUser.id)
+              });
+          } else {
+              // Add reaction
+              await postRef.update({
+                  [`reactions.${reactionType}`]: FieldValue.arrayUnion(currentUser.id)
+              });
+          }
       } catch (err) {
-          console.error("Failed to reaction", err);
+          console.error("Failed to update reaction", err);
       }
   };
 
   const handleAddComment = async (postId: string, text: string) => {
-      if (!currentUser) return;
+      if (!db || !currentUser || !FieldValue) return;
       try {
-          const updatedComments = await api.post(`/posts/${postId}/comment`, { text }, currentUser.token);
-          setPosts(posts.map(p => p.id === postId ? {
-              ...p,
-              comments: updatedComments.map((c: any) => ({
-                  id: c._id,
-                  authorId: c.user,
-                  text: c.text,
-                  timestamp: new Date(c.createdAt).getTime()
-              }))
-          } : p));
+          const newComment = {
+              id: Date.now().toString(),
+              authorId: currentUser.id,
+              text,
+              timestamp: Date.now()
+          };
+          await db.collection('posts').doc(postId).update({
+              comments: FieldValue.arrayUnion(newComment)
+          });
       } catch (err) {
           console.error("Failed to add comment", err);
       }

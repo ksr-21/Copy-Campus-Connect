@@ -92,14 +92,6 @@ const HomePage: React.FC<HomePageProps> = (props) => {
 
     return (
         <div className="min-h-screen bg-background relative isolate transition-colors duration-300">
-            {/* Beautiful Background Mesh - Enhanced for Light Mode */}
-            <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-                {/* Light Mode: Richer Gradients */}
-                <div className="absolute top-[-20%] left-[-20%] w-[70%] h-[70%] rounded-full bg-blue-400/20 dark:bg-indigo-900/20 blur-[120px] mix-blend-multiply dark:mix-blend-normal animate-pulse"></div>
-                <div className="absolute bottom-[-20%] right-[-20%] w-[70%] h-[70%] rounded-full bg-purple-400/20 dark:bg-fuchsia-900/20 blur-[120px] mix-blend-multiply dark:mix-blend-normal animate-pulse animation-delay-2000"></div>
-                <div className="absolute top-[30%] left-[40%] w-[50%] h-[50%] rounded-full bg-pink-300/20 dark:bg-sky-900/20 blur-[100px] mix-blend-multiply dark:mix-blend-normal opacity-70"></div>
-            </div>
-
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
 
             {/* New Posts Toast */}
