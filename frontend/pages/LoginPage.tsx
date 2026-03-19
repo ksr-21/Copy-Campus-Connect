@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { api } from '../api';
+import { auth } from '../firebase';
 import { MailIcon, LockIcon } from '../components/Icons';
 
 interface LoginPageProps {
@@ -29,10 +29,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         setError('');
         setIsLoading(true);
         try {
-            const data = await api.post('/auth/login', { email, password });
-            localStorage.setItem('user', JSON.stringify(data));
-            window.dispatchEvent(new Event('storage'));
-            // Navigation will be handled by App.tsx observing the storage change or state update
+            if (!auth) {
+                throw new Error("Authentication service is unavailable.");
+            }
+            await auth.signInWithEmailAndPassword(email, password);
+            // Session state will be managed by App.tsx via onAuthStateChanged
         } catch (err: any) {
             if (isMounted.current) {
                 setError(err.message);

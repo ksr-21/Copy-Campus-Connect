@@ -35,11 +35,11 @@ const reactionsList: { type: ReactionType; emoji: string; color: string; label: 
 ];
 
 const confessionMoods: { [key in ConfessionMood]: { emoji: string; gradient: string; } } = {
-    love: { emoji: '💘', gradient: 'from-rose-500 via-pink-600 to-purple-700' },
-    funny: { emoji: '🤣', gradient: 'from-amber-400 via-orange-500 to-red-500' },
-    sad: { emoji: '😢', gradient: 'from-blue-600 via-indigo-700 to-slate-800' },
-    chaos: { emoji: '🤯', gradient: 'from-purple-600 via-fuchsia-700 to-pink-800' },
-    deep: { emoji: '🧠', gradient: 'from-slate-700 via-slate-800 to-black' },
+    love: { emoji: '💘', gradient: 'from-rose-400 to-rose-500' },
+    funny: { emoji: '🤣', gradient: 'from-amber-400 to-orange-400' },
+    sad: { emoji: '😢', gradient: 'from-slate-500 to-slate-600' },
+    chaos: { emoji: '🤯', gradient: 'from-indigo-500 to-purple-500' },
+    deep: { emoji: '🧠', gradient: 'from-slate-800 to-slate-900' },
 };
 
 const formatTimestamp = (timestamp: number) => {
@@ -391,10 +391,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
       className="mb-8 animate-fade-in group relative"
       style={{ animationDelay: `${(animationIndex || 0) * 100}ms` }}
     >
-      {/* Decorative glow - More intense on hover */}
-      <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-3xl opacity-0 group-hover:opacity-40 transition duration-500 blur-lg group-hover:blur-xl"></div>
-
-      <div className="relative bg-card dark:bg-slate-900 border border-border/60 rounded-3xl shadow-[0_2px_15px_rgba(0,0,0,0.04)] overflow-hidden transition-all duration-300 hover:-translate-y-1">
+      <div className="relative bg-card dark:bg-slate-900 border border-border/60 rounded-xl shadow-sm overflow-hidden transition-all duration-300">
       {/* Header */}
       <div className="flex items-center justify-between p-5">
         <div className="flex items-center space-x-3.5 cursor-pointer group/author" onClick={() => onNavigate(`#/profile/${author.id}`)}>
