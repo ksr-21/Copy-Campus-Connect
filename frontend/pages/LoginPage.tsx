@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebase';
+import { api } from '../api';
 import { MailIcon, LockIcon } from '../components/Icons';
 
 interface LoginPageProps {
@@ -29,14 +30,41 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         setError('');
         setIsLoading(true);
         try {
-            if (!auth) {
-                throw new Error("Authentication service is unavailable.");
+            if (auth) {
+                // Primary: Firebase Auth
+                await auth.signInWithEmailAndPassword(email, password);
+                // Session state will be managed by App.tsx via onAuthStateChanged
+            } else {
+                // Fallback: Backend API
+                console.log("Firebase unavailable. Attempting fallback login via API...");
+                const data = await api.post('/auth/login', { email, password });
+
+                // Store session in localStorage for App.tsx to pickup
+                const userData = {
+                    ...data,
+                    id: data._id // Map backend _id to id for frontend compatibility
+                };
+                localStorage.setItem('user', JSON.stringify(userData));
+
+                // Dispatch event to notify App.tsx
+                window.dispatchEvent(new Event('storage'));
             }
-            await auth.signInWithEmailAndPassword(email, password);
-            // Session state will be managed by App.tsx via onAuthStateChanged
         } catch (err: any) {
             if (isMounted.current) {
-                setError(err.message);
+                // If Firebase failed, try API as a last resort before showing error
+                if (auth && err.code !== 'auth/wrong-password' && err.code !== 'auth/user-not-found') {
+                    try {
+                        const data = await api.post('/auth/login', { email, password });
+                        const userData = { ...data, id: data._id };
+                        localStorage.setItem('user', JSON.stringify(userData));
+                        window.dispatchEvent(new Event('storage'));
+                        return;
+                    } catch (fallbackErr: any) {
+                         setError(fallbackErr.message || "Authentication service is unavailable.");
+                    }
+                } else {
+                    setError(err.message);
+                }
                 setIsLoading(false);
             }
         }

@@ -102,6 +102,20 @@ const App = () => {
     };
   }, [currentUser]);
 
+  // Listen for storage events (for fallback login synchronization)
+  useEffect(() => {
+      const handleStorageChange = () => {
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+              setCurrentUser(JSON.parse(storedUser));
+          } else if (!auth?.currentUser) {
+              setCurrentUser(null);
+          }
+      };
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   // Sync browser hash with currentPath state
   useEffect(() => {
       const handleHashChange = () => {
@@ -143,8 +157,18 @@ const App = () => {
       }
   }, [currentUser, currentPath]);
 
-  // 1. Auth State Listener (using Firebase)
+  // 1. Auth State Listener (Firebase + Local Fallback)
   useEffect(() => {
+    // Check for existing manual session first (e.g., from API fallback)
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+        try {
+            setCurrentUser(JSON.parse(storedUser));
+        } catch (e) {
+            console.error("Failed to parse stored user", e);
+        }
+    }
+
     if (!auth || !db) {
         setLoading(false);
         return;
@@ -164,14 +188,17 @@ const App = () => {
                 setAuthUserId(null);
             }
         } else {
-            setAuthUserId(null);
-            setCurrentUser(null);
-            // Clear other data
-            setPosts([]);
+            // Only clear state if there's no manual session in localStorage
+            if (!localStorage.getItem('user')) {
+                setAuthUserId(null);
+                setCurrentUser(null);
+                // Clear other data
+                setPosts([]);
 
-            const publicPaths = ['#/', '#/login', '#/signup'];
-            if (!publicPaths.includes(window.location.hash)) {
-                setCurrentPath('#/');
+                const publicPaths = ['#/', '#/login', '#/signup'];
+                if (!publicPaths.includes(window.location.hash)) {
+                    setCurrentPath('#/');
+                }
             }
         }
         setLoading(false);
