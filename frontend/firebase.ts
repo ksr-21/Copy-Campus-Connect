@@ -1,8 +1,8 @@
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { initializeFirestore, serverTimestamp, increment, arrayUnion, arrayRemove } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
-import { getAnalytics } from "firebase/analytics";
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
+import 'firebase/compat/storage';
+import 'firebase/compat/analytics';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -19,31 +19,40 @@ let auth: any = null;
 let db: any = null;
 let storage: any = null;
 let analytics: any = null;
-
-// Recreating FieldValue with its core methods for backward compatibility
-const FieldValue = {
-  serverTimestamp,
-  increment,
-  arrayUnion,
-  arrayRemove
-};
+let FieldValue: any = null;
 
 if (firebaseConfig.apiKey) {
   try {
-    const app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
+    const app = firebase.apps.length === 0 ? firebase.initializeApp(firebaseConfig) : firebase.app();
+    auth = firebase.auth(app);
+    db = firebase.firestore(app);
+    storage = firebase.storage(app);
 
-    // Using initializeFirestore to re-add existing settings mentioned by the reviewer
-    db = initializeFirestore(app, {
-      experimentalForceLongPolling: true,
-      ignoreUndefinedProperties: true
-    });
+    // Configure Firestore settings securely
+    try {
+        db.settings({
+            experimentalForceLongPolling: true,
+            ignoreUndefinedProperties: true
+        });
+    } catch (e) {
+        console.warn("Firestore settings already applied.");
+    }
 
-    storage = getStorage(app);
-
-    // Initialize Analytics if supported in the current environment
+    // Enable offline persistence
     if (typeof window !== 'undefined') {
-        analytics = getAnalytics(app);
+        db.enablePersistence().catch((err: any) => {
+            if (err.code === 'failed-precondition') {
+                console.warn("Multiple tabs open, persistence can only be enabled in one tab at a time.");
+            } else if (err.code === 'unimplemented') {
+                console.warn("The current browser does not support persistence.");
+            }
+        });
+    }
+
+    FieldValue = firebase.firestore.FieldValue;
+
+    if (typeof window !== 'undefined') {
+        analytics = firebase.analytics(app);
     }
   } catch (error) {
     console.error("Firebase initialization error:", error);
