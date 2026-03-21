@@ -12,7 +12,7 @@ const {
 } = require('../controllers/postController');
 const { protect } = require('../middleware/auth');
 
-router.route('/').get(getPosts).post(protect, createPost);
+router.route('/').get(protect, getPosts).post(protect, createPost);
 router.route('/:id').delete(protect, deletePost);
 router.post('/:id/react', protect, reactToPost);
 router.post('/:id/comment', protect, addComment);

@@ -26,4 +26,24 @@ describe('Authentication Error Handling (Mocked)', () => {
     expect(res.statusCode).toEqual(401);
     expect(res.body.message).toEqual('Not authorized');
   });
+
+  it('should return 401 for GET /api/posts without token', async () => {
+    const res = await request(app).get('/api/posts');
+    expect(res.statusCode).toEqual(401);
+  });
+
+  it('should return 401 for GET /api/groups without token', async () => {
+    const res = await request(app).get('/api/groups');
+    expect(res.statusCode).toEqual(401);
+  });
+
+  it('should return 401 for GET /api/stories without token', async () => {
+    const res = await request(app).get('/api/stories');
+    expect(res.statusCode).toEqual(401);
+  });
+
+  it('should return 401 for GET /api/conversations without token', async () => {
+    const res = await request(app).get('/api/conversations');
+    expect(res.statusCode).toEqual(401);
+  });
 });
