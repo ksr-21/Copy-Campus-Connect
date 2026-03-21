@@ -48,7 +48,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 // Store session in localStorage for App.tsx to pickup
                 const userData = {
                     ...data,
-                    id: data._id // Map backend _id to id for frontend compatibility
+                    id: data._id, // Map backend _id to id for frontend compatibility
+                    firebaseUid: data.firebaseUid
                 };
                 localStorage.setItem('user', JSON.stringify(userData));
 
@@ -61,7 +62,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 if (auth && err.code !== 'auth/wrong-password' && err.code !== 'auth/user-not-found') {
                     try {
                         const data = await api.post('/auth/login', { email, password });
-                        const userData = { ...data, id: data._id };
+                        const userData = { ...data, id: data._id, firebaseUid: data.firebaseUid };
                         localStorage.setItem('user', JSON.stringify(userData));
                         window.dispatchEvent(new Event('storage'));
                         return;

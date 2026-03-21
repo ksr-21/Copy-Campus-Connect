@@ -12,13 +12,13 @@ export const syncBackendToken = async (email: string, password?: string, profile
     try {
         // 1. Attempt Backend Login
         const data = await api.post('/auth/login', { email, password });
-        const userData = { ...data, id: data._id };
+        const userData = { ...data, id: data._id, firebaseUid: data.firebaseUid || firebaseUid };
         localStorage.setItem('user', JSON.stringify(userData));
 
         // If login successful but we have profile data, update it
         if (profileData) {
             const updatedUser = await api.put('/auth/profile', profileData, userData.token);
-            localStorage.setItem('user', JSON.stringify({ ...userData, ...updatedUser, id: updatedUser._id }));
+            localStorage.setItem('user', JSON.stringify({ ...userData, ...updatedUser, id: updatedUser._id, firebaseUid: updatedUser.firebaseUid || userData.firebaseUid }));
         }
     } catch (loginErr: any) {
         // Fallback: Attempt registration if login fails
@@ -30,7 +30,7 @@ export const syncBackendToken = async (email: string, password?: string, profile
                 ...profileData,
                 firebaseUid
             });
-            const userData = { ...registerData, id: registerData._id };
+            const userData = { ...registerData, id: registerData._id, firebaseUid: registerData.firebaseUid || firebaseUid };
             localStorage.setItem('user', JSON.stringify(userData));
         } catch (regErr) {
             console.error("Auto-migration/Registration failed", regErr);

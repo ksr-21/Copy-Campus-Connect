@@ -220,7 +220,7 @@ const App = () => {
             if (storedUserString) {
                 try {
                     const storedUser = JSON.parse(storedUserString);
-                    if (storedUser.id === user.uid && storedUser.token) {
+                    if (storedUser.firebaseUid === user.uid && storedUser.token) {
                         // We have a token, fetch fresh profile from MongoDB
                         try {
                             const userData = await api.get('/auth/me', storedUser.token);
