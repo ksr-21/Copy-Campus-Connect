@@ -37,6 +37,7 @@ export type User = {
   isRegistered?: boolean; // Tracks if the user has set a password/completed signup
   isFrozen?: boolean;
   requestedCollegeName?: string; // For pending directors who haven't had their college created yet
+  token?: string; // Added for API authentication
 }
 
 export type College = {

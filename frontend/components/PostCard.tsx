@@ -143,7 +143,7 @@ const Lightbox: React.FC<{ images: string[]; startIndex: number; onClose: () => 
 
 
 const PostCard: React.FC<PostCardProps> = (props) => {
-  const { post, author, currentUser, users, onReaction, onAddComment, onDeletePost, onDeleteComment, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, groups, onNavigate, animationIndex } = props;
+  const { post, author: authorProp, currentUser, users, onReaction, onAddComment, onDeletePost, onDeleteComment, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, groups, onNavigate, animationIndex } = props;
   const [showComments, setShowComments] = useState(false);
   const [shareModalState, setShareModalState] = useState<{isOpen: boolean, defaultTab: 'share' | 'message'}>({isOpen: false, defaultTab: 'share'});
   const [isReactionsModalOpen, setIsReactionsModalOpen] = useState(false);
@@ -211,9 +211,12 @@ const PostCard: React.FC<PostCardProps> = (props) => {
 }, [post.isEvent, post.eventDetails?.date]);
 
 
+  // Handle both flat author (prop) and populated authorId (from backend)
+  const author = post.authorId && typeof post.authorId === 'object' ? (post.authorId as unknown as User) : authorProp;
+
   if (!author && !post.isConfession) return null;
 
-  const isAuthor = post.authorId === currentUser.id;
+  const isAuthor = (typeof post.authorId === 'string' ? post.authorId : author?.id) === currentUser.id;
   const canDelete = useMemo(() => {
     const isDirector = currentUser.tag === 'Director';
     if (post.isConfession) return isDirector;

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
+import { api } from './api';
 import type { User, Post, Group, Story, Course, Notice, Conversation, College, PersonalNote, UserTag, GroupCategory, GroupPrivacy, AttendanceRecord, Note, Assignment } from './types';
 
 import WelcomePage from './pages/WelcomePage';
@@ -29,6 +30,7 @@ const App = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [backendStatus, setBackendStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
   const [currentPath, setCurrentPath] = useState('#/');
 
   // Data State
@@ -55,11 +57,40 @@ const App = () => {
         setUsers(usersData);
     });
 
-    // Groups
-    const unsubGroups = db.collection('groups').onSnapshot((snapshot: any) => {
-        const groupsData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
-        setGroups(groupsData);
-    });
+    // Groups (Initial Fetch + Periodic Refresh if using API, or keep Firestore for realtime)
+    // For this task, we'll keep Firestore realtime BUT use API for mutations.
+    // However, the user asked to save to MongoDB.
+    // To see MongoDB data, we should fetch from API.
+    let groupsInterval: any;
+    if (currentUser) {
+        const fetchGroups = async () => {
+            try {
+                const data = await api.get('/groups', currentUser.token);
+                setGroups(data.map((g: any) => ({ ...g, id: g._id })));
+            } catch (err) {
+                console.error("Failed to fetch groups from MongoDB", err);
+            }
+        };
+
+        fetchGroups();
+        groupsInterval = setInterval(fetchGroups, 10000); // Poll every 10s as a simple alternative to onSnapshot
+    }
+
+  // Backend Health Check
+  const checkHealth = async () => {
+    try {
+        const data = await api.get('/health');
+        setBackendStatus(data.database === 'connected' ? 'connected' : 'disconnected');
+    } catch (err) {
+        setBackendStatus('disconnected');
+    }
+  };
+
+  useEffect(() => {
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
     // Stories
     const unsubStories = db.collection('stories').onSnapshot((snapshot: any) => {
@@ -93,7 +124,7 @@ const App = () => {
 
     return () => {
         unsubUsers();
-        unsubGroups();
+        clearInterval(groupsInterval);
         unsubStories();
         unsubCourses();
         unsubNotices();
@@ -207,110 +238,81 @@ const App = () => {
     return () => unsubscribe();
   }, []);
 
-  // Fetch Posts from Firestore
+  // Fetch Posts from MongoDB
   useEffect(() => {
-    if (!db || !currentUser) return;
+    if (!currentUser) return;
 
-    const unsubscribe = db.collection('posts')
-        .where('collegeId', '==', currentUser.collegeId || '')
-        .onSnapshot((snapshot: any) => {
-            const postsData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
-            // Sort client side if needed or use composite index
-            setPosts(postsData.sort((a: any, b: any) => b.timestamp - a.timestamp));
-        }, (err: any) => {
-            console.error("Posts subscription error:", err);
-            // Fallback for missing index: try without where
-            db.collection('posts').onSnapshot((snapshot: any) => {
-                 const postsData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
-                 setPosts(postsData.sort((a: any, b: any) => b.timestamp - a.timestamp));
-            });
-        });
+    const fetchPosts = async () => {
+        try {
+            const data = await api.get(`/posts?collegeId=${currentUser.collegeId || ''}`, currentUser.token);
+            setPosts(data.map((p: any) => ({ ...p, id: p._id })));
+        } catch (err) {
+            console.error("Failed to fetch posts from MongoDB", err);
+        }
+    };
 
-    return () => unsubscribe();
+    fetchPosts();
+    const interval = setInterval(fetchPosts, 15000); // Poll every 15s
+
+    return () => clearInterval(interval);
   }, [currentUser]);
 
-  // Posts Handlers (Firestore)
+  // Posts Handlers (MongoDB Backend)
   const handleAddPost = async (postDetails: any) => {
-      if (!db || !currentUser) return;
+      if (!currentUser) return;
       try {
-          const newPost = {
-              ...postDetails,
-              authorId: currentUser.id,
-              timestamp: Date.now(),
-              comments: [],
-              reactions: {},
+          // Normalize mediaDataUrls to mediaUrls for backend compatibility if present
+          const { mediaDataUrls, ...rest } = postDetails;
+          const payload = {
+              ...rest,
+              mediaUrls: mediaDataUrls || [],
               collegeId: currentUser.collegeId || ''
           };
-          await db.collection('posts').add(newPost);
-      } catch (err) {
+
+          const newPost = await api.post('/posts', payload, currentUser.token);
+          setPosts(prev => [{ ...newPost, id: newPost._id }, ...prev]);
+      } catch (err: any) {
           console.error("Failed to add post", err);
       }
   };
 
   const handleDeletePost = async (postId: string) => {
-      if (!db) return;
+      if (!currentUser) return;
       try {
-          await db.collection('posts').doc(postId).delete();
-      } catch (err) {
+          await api.delete(`/posts/${postId}`, currentUser.token);
+          setPosts(prev => prev.filter(p => p.id !== postId));
+      } catch (err: any) {
           console.error("Failed to delete post", err);
       }
   };
 
   const handleReaction = async (postId: string, reactionType: string) => {
-      if (!db || !currentUser || !FieldValue) return;
+      if (!currentUser) return;
       try {
-          const postRef = db.collection('posts').doc(postId);
-          const post = posts.find(p => p.id === postId);
-          if (!post) return;
-
-          const reactions = post.reactions || {};
-          const currentUsersForType = reactions[reactionType] || [];
-
-          if (currentUsersForType.includes(currentUser.id)) {
-              // Remove reaction
-              await postRef.update({
-                  [`reactions.${reactionType}`]: FieldValue.arrayRemove(currentUser.id)
-              });
-          } else {
-              // Add reaction
-              await postRef.update({
-                  [`reactions.${reactionType}`]: FieldValue.arrayUnion(currentUser.id)
-              });
-          }
-      } catch (err) {
+          const updatedReactions = await api.post(`/posts/${postId}/react`, { reactionType }, currentUser.token);
+          setPosts(prev => prev.map(p => p.id === postId ? { ...p, reactions: updatedReactions } : p));
+      } catch (err: any) {
           console.error("Failed to update reaction", err);
       }
   };
 
   const handleAddComment = async (postId: string, text: string) => {
-      if (!db || !currentUser || !FieldValue) return;
+      if (!currentUser) return;
       try {
-          const newComment = {
-              id: Date.now().toString(),
-              authorId: currentUser.id,
-              text,
-              timestamp: Date.now()
-          };
-          await db.collection('posts').doc(postId).update({
-              comments: FieldValue.arrayUnion(newComment)
-          });
-      } catch (err) {
+          const updatedComments = await api.post(`/posts/${postId}/comment`, { text }, currentUser.token);
+          setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: updatedComments } : p));
+      } catch (err: any) {
           console.error("Failed to add comment", err);
       }
   };
 
   const handleDeleteComment = async (postId: string, commentId: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
-      const post = posts.find(p => p.id === postId);
-      if (!post) return;
-      const commentToDelete = post.comments.find(c => c.id === commentId);
-      if (commentToDelete && FieldValue) {
-          await db.collection('posts').doc(postId).update({
-              comments: FieldValue.arrayRemove(commentToDelete)
-          });
+      if (!currentUser) return;
+      try {
+          const updatedComments = await api.delete(`/posts/${postId}/comment/${commentId}`, currentUser.token);
+          setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: updatedComments } : p));
+      } catch (err: any) {
+          console.error("Failed to delete comment", err);
       }
   };
 
@@ -332,10 +334,6 @@ const App = () => {
   };
 
   const handleSharePost = async (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group', id?: string }) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
       const sharedPostInfo = {
           originalId: originalPost.id,
@@ -349,17 +347,17 @@ const App = () => {
           originalIsConfession: originalPost.isConfession
       };
 
-      const newPost = {
-          authorId: currentUser.id,
-          content: commentary,
-          timestamp: Date.now(),
-          sharedPost: sharedPostInfo,
-          comments: [],
-          reactions: {},
-          groupId: shareTarget.type === 'group' ? shareTarget.id : undefined,
-          collegeId: currentUser.collegeId
-      };
-      await db.collection('posts').add(newPost);
+      try {
+          const newPost = await api.post('/posts', {
+              content: commentary,
+              sharedPost: sharedPostInfo,
+              groupId: shareTarget.type === 'group' ? shareTarget.id : undefined,
+              collegeId: currentUser.collegeId
+          }, currentUser.token);
+          setPosts(prev => [{ ...newPost, id: newPost._id }, ...prev]);
+      } catch (err: any) {
+          console.error("Failed to share post", err);
+      }
   };
 
   const handleSharePostAsMessage = async (conversationId: string, authorName: string, postContent: string) => {
@@ -474,112 +472,105 @@ const App = () => {
       }
   };
 
-  // Groups
+  // Groups (MongoDB Backend)
   const handleCreateGroup = async (groupDetails: any) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      const newGroup = {
-          ...groupDetails,
-          creatorId: currentUser.id,
-          memberIds: [currentUser.id],
-          collegeId: currentUser.collegeId
-      };
-      await db.collection('groups').add(newGroup);
+      try {
+          const newGroup = await api.post('/groups', {
+              ...groupDetails,
+              collegeId: currentUser.collegeId
+          }, currentUser.token);
+          setGroups(prev => [...prev, { ...newGroup, id: newGroup._id }]);
+      } catch (err: any) {
+          alert("Failed to create group: " + err.message);
+      }
   };
 
   const handleJoinGroupRequest = async (groupId: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      const group = groups.find(g => g.id === groupId);
-      if (group?.privacy === 'public') {
-          await db.collection('groups').doc(groupId).update({ memberIds: FieldValue.arrayUnion(currentUser.id) });
-      } else {
-          await db.collection('groups').doc(groupId).update({ pendingMemberIds: FieldValue.arrayUnion(currentUser.id) });
+      try {
+          const updatedGroup = await api.post(`/groups/${groupId}/join`, {}, currentUser.token);
+          setGroups(prev => prev.map(g => g.id === groupId ? { ...updatedGroup, id: updatedGroup._id } : g));
+      } catch (err: any) {
+          alert("Failed to join group: " + err.message);
       }
   };
 
   const handleApproveJoinRequest = async (groupId: string, userId: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedGroup = await api.post(`/groups/${groupId}/approve/${userId}`, {}, currentUser.token);
+          setGroups(prev => prev.map(g => g.id === groupId ? { ...updatedGroup, id: updatedGroup._id } : g));
+      } catch (err: any) {
+          alert("Failed to approve request: " + err.message);
       }
-      await db.collection('groups').doc(groupId).update({
-          pendingMemberIds: FieldValue.arrayRemove(userId),
-          memberIds: FieldValue.arrayUnion(userId)
-      });
   };
 
   const handleDeclineJoinRequest = async (groupId: string, userId: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedGroup = await api.post(`/groups/${groupId}/decline/${userId}`, {}, currentUser.token);
+          setGroups(prev => prev.map(g => g.id === groupId ? { ...updatedGroup, id: updatedGroup._id } : g));
+      } catch (err: any) {
+          alert("Failed to decline request: " + err.message);
       }
-      await db.collection('groups').doc(groupId).update({
-          pendingMemberIds: FieldValue.arrayRemove(userId)
-      });
   };
 
   const handleToggleFollowGroup = async (groupId: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      const isFollowing = currentUser.followingGroups?.includes(groupId);
-      if (isFollowing) {
-          await db.collection('users').doc(currentUser.id).update({ followingGroups: FieldValue.arrayRemove(groupId) });
-          await db.collection('groups').doc(groupId).update({ followers: FieldValue.arrayRemove(currentUser.id) });
-      } else {
-          await db.collection('users').doc(currentUser.id).update({ followingGroups: FieldValue.arrayUnion(groupId) });
-          await db.collection('groups').doc(groupId).update({ followers: FieldValue.arrayUnion(currentUser.id) });
+      try {
+          await api.post(`/groups/${groupId}/follow`, {}, currentUser.token);
+          // Update local state for immediate feedback (Firestore fallback if enabled)
+          if (db && FieldValue && auth?.currentUser) {
+             const isFollowing = currentUser.followingGroups?.includes(groupId);
+             await db.collection('users').doc(currentUser.id).update({
+                 followingGroups: isFollowing ? FieldValue.arrayRemove(groupId) : FieldValue.arrayUnion(groupId)
+             });
+          }
+          // Note: In a full MongoDB migration, we would update the User model in MongoDB here.
+      } catch (err: any) {
+          console.error("Failed to toggle follow", err);
       }
   };
 
   const handleUpdateGroup = async (groupId: string, data: any) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedGroup = await api.put(`/groups/${groupId}`, data, currentUser.token);
+          setGroups(prev => prev.map(g => g.id === groupId ? { ...updatedGroup, id: updatedGroup._id } : g));
+      } catch (err: any) {
+          alert("Failed to update group: " + err.message);
       }
-      await db.collection('groups').doc(groupId).update(data);
   };
 
   const handleDeleteGroup = async (groupId: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          await api.delete(`/groups/${groupId}`, currentUser.token);
+          setGroups(prev => prev.filter(g => g.id !== groupId));
+      } catch (err: any) {
+          alert("Failed to delete group: " + err.message);
       }
-      await db.collection('groups').doc(groupId).delete();
   };
 
   const handleSendGroupMessage = async (groupId: string, text: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      const newMessage = {
-          id: Date.now().toString(),
-          senderId: currentUser.id,
-          text,
-          timestamp: Date.now()
-      };
-      await db.collection('groups').doc(groupId).update({
-          messages: FieldValue.arrayUnion(newMessage)
-      });
+      try {
+          const messages = await api.post(`/groups/${groupId}/messages`, { text }, currentUser.token);
+          setGroups(prev => prev.map(g => g.id === groupId ? { ...g, messages } : g));
+      } catch (err: any) {
+          console.error("Failed to send group message", err);
+      }
   };
 
   const handleRemoveGroupMember = async (groupId: string, memberId: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedGroup = await api.delete(`/groups/${groupId}/members/${memberId}`, currentUser.token);
+          setGroups(prev => prev.map(g => g.id === groupId ? { ...updatedGroup, id: updatedGroup._id } : g));
+      } catch (err: any) {
+          alert("Failed to remove member: " + err.message);
       }
-      await db.collection('groups').doc(groupId).update({ memberIds: FieldValue.arrayRemove(memberId) });
   };
 
   // Profile
@@ -1275,22 +1266,22 @@ const App = () => {
             currentUser={currentUser}
             onNavigate={setCurrentPath}
             onRegister={async (eid) => {
-                if (!db || !FieldValue) return;
-                const post = posts.find(p => p.id === eid);
-                if (post) {
-                    const attendees = post.eventDetails?.attendees || [];
-                    if (!attendees.includes(currentUser.id)) {
-                        await db.collection('posts').doc(eid).update({
-                            'eventDetails.attendees': FieldValue.arrayUnion(currentUser.id)
-                        });
-                    }
+                if (!currentUser) return;
+                try {
+                    const attendees = await api.post(`/posts/${eid}/register`, {}, currentUser.token);
+                    setPosts(prev => prev.map(p => p.id === eid ? { ...p, eventDetails: { ...p.eventDetails, attendees } } : p));
+                } catch (err) {
+                    console.error("Failed to register for event", err);
                 }
             }}
             onUnregister={async (eid) => {
-                 if (!db || !FieldValue) return;
-                 await db.collection('posts').doc(eid).update({
-                    'eventDetails.attendees': FieldValue.arrayRemove(currentUser.id)
-                });
+                if (!currentUser) return;
+                try {
+                    const attendees = await api.post(`/posts/${eid}/unregister`, {}, currentUser.token);
+                    setPosts(prev => prev.map(p => p.id === eid ? { ...p, eventDetails: { ...p.eventDetails, attendees } } : p));
+                } catch (err) {
+                    console.error("Failed to unregister from event", err);
+                }
             }}
             onDeleteEvent={handleDeletePost}
           />
@@ -1470,6 +1461,12 @@ const App = () => {
 
   // Default Fallback
   return (
+      <div className="relative">
+          {backendStatus === 'disconnected' && (
+              <div className="fixed top-0 left-0 w-full bg-red-600 text-white text-[10px] font-bold py-1 text-center z-[9999] animate-pulse">
+                  ⚠️ Backend/Database Disconnected. Please check your setup.
+              </div>
+          )}
       <HomePage
         currentUser={currentUser}
         users={users}
@@ -1495,6 +1492,7 @@ const App = () => {
         onSharePost={handleSharePost}
         onToggleSavePost={handleToggleSavePost}
       />
+      </div>
   );
 };
 

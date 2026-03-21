@@ -44,9 +44,13 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments, users, curren
       {/* Comment List */}
       <div className="space-y-4">
         {comments.sort((a,b) => a.timestamp - b.timestamp).map((comment) => {
-          const author = users[comment.authorId];
+          const author = comment.authorId && typeof comment.authorId === 'object'
+            ? (comment.authorId as unknown as User)
+            : users[comment.authorId as string];
+
           if (!author) return null;
-          const canDelete = currentUser.id === comment.authorId || currentUser.id === postAuthorId || currentUser.tag === 'Director';
+          const authorId = typeof comment.authorId === 'string' ? comment.authorId : author.id;
+          const canDelete = currentUser.id === authorId || currentUser.id === postAuthorId || currentUser.tag === 'Director';
           return (
             <div key={comment.id} className="group flex items-start space-x-3">
               <Avatar src={author.avatarUrl} name={author.name} size="sm" />

@@ -16,8 +16,19 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Routes
+app.get('/api/health', (req, res) => {
+    const mongoose = require('mongoose');
+    const isConnected = mongoose.connection.readyState === 1;
+    res.json({
+        status: 'ok',
+        database: isConnected ? 'connected' : 'disconnected',
+        timestamp: new Date().toISOString()
+    });
+});
+
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/posts', require('./routes/postRoutes'));
+app.use('/api/groups', require('./routes/groupRoutes'));
 
 // Serve frontend
 if (process.env.NODE_ENV === 'production') {
