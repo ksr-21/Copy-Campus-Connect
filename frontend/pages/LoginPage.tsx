@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebase';
 import { api } from '../api';
+import { syncBackendToken } from '../utils/authUtils';
 import { MailIcon, LockIcon } from '../components/Icons';
 
 interface LoginPageProps {
@@ -32,8 +33,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         try {
             if (auth) {
                 // Primary: Firebase Auth
-                await auth.signInWithEmailAndPassword(email, password);
-                // Session state will be managed by App.tsx via onAuthStateChanged
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+
+                if (user) {
+                    // Synchronize with MongoDB Backend (Login or Auto-Migration)
+                    await syncBackendToken(email, password);
+                }
             } else {
                 // Fallback: Backend API
                 console.log("Firebase unavailable. Attempting fallback login via API...");
