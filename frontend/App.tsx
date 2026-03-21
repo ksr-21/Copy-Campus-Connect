@@ -232,10 +232,14 @@ const App = () => {
                         const storedUser = JSON.parse(storedUserString);
                         if (storedUser.id === user.uid && storedUser.token) {
                             userData.token = storedUser.token;
+                        } else if (!storedUser.token) {
+                             console.warn("User found in localStorage but backend token is missing.");
                         }
                     } catch (e) {
                         console.error("Error parsing stored user for token sync", e);
                     }
+                } else {
+                    console.warn("No 'user' object found in localStorage for token synchronization.");
                 }
 
                 setCurrentUser(userData);
@@ -502,6 +506,9 @@ const App = () => {
   // Groups (MongoDB Backend)
   const handleCreateGroup = async (groupDetails: any) => {
       if (!currentUser) return;
+      if (!currentUser.token) {
+          console.warn("Attempting to create group without backend token. Fallback to localStorage will be used.");
+      }
       try {
           const newGroup = await api.post('/groups', {
               ...groupDetails,
