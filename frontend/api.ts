@@ -1,13 +1,27 @@
 
 const API_URL = '/api';
 
+const getStoredToken = () => {
+    try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            const user = JSON.parse(storedUser);
+            return user.token;
+        }
+    } catch (e) {
+        console.error("Error parsing stored user for token fallback", e);
+    }
+    return null;
+};
+
 export const api = {
     async post(endpoint: string, body: any, token?: string) {
+        const authToken = token || getStoredToken();
         const response = await fetch(`${API_URL}${endpoint}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
             },
             body: JSON.stringify(body),
         });
@@ -19,10 +33,11 @@ export const api = {
     },
 
     async get(endpoint: string, token?: string) {
+        const authToken = token || getStoredToken();
         const response = await fetch(`${API_URL}${endpoint}`, {
             method: 'GET',
             headers: {
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
             },
         });
         const data = await response.json();
@@ -33,11 +48,12 @@ export const api = {
     },
 
     async put(endpoint: string, body: any, token?: string) {
+        const authToken = token || getStoredToken();
         const response = await fetch(`${API_URL}${endpoint}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
             },
             body: JSON.stringify(body),
         });
@@ -49,10 +65,11 @@ export const api = {
     },
 
     async delete(endpoint: string, token?: string) {
+        const authToken = token || getStoredToken();
         const response = await fetch(`${API_URL}${endpoint}`, {
             method: 'DELETE',
             headers: {
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
             },
         });
         const data = await response.json();
