@@ -69,29 +69,36 @@ const updateGroup = async (req, res, next) => {
       throw new Error('Group not found');
     }
 
-    // Check if user is creator
-    if (group.creatorId.toString() !== req.user.id) {
+    // Check if user is creator or higher admin
+    const isAdmin = ['Super Admin', 'Director'].includes(req.user.tag);
+    if (group.creatorId.toString() !== req.user.id && !isAdmin) {
       res.status(401);
       throw new Error('User not authorized');
     }
 
+    // Handle atomic updates for resources if provided
+    if (req.body.resourceAction) {
+        const { action, resource } = req.body.resourceAction;
+        if (action === 'add') {
+            group.resources.push(resource);
+        } else if (action === 'remove') {
+            group.resources = group.resources.filter(r => r.id !== resource.id);
+        }
+        await group.save();
+        return res.status(200).json(group);
+    }
+
     // Security: Only allow updating certain fields
     const { name, description, category, privacy, tagline, visibilitySettings } = req.body;
-    const updates = {
-        name,
-        description,
-        category,
-        privacy,
-        tagline,
-        visibilitySettings
-    };
 
-    // Remove undefined fields
-    Object.keys(updates).forEach(key => updates[key] === undefined && delete updates[key]);
+    if (name) group.name = name;
+    if (description) group.description = description;
+    if (category) group.category = category;
+    if (privacy) group.privacy = privacy;
+    if (tagline) group.tagline = tagline;
+    if (visibilitySettings) group.visibilitySettings = visibilitySettings;
 
-    group = await Group.findByIdAndUpdate(req.params.id, updates, {
-      new: true,
-    });
+    await group.save();
 
     res.status(200).json(group);
   } catch (error) {

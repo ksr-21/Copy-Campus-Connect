@@ -15,7 +15,7 @@ import {
     FileIcon, InfoIcon, ShieldIcon, CheckCircleIcon, XCircleIcon, LinkIcon,
     DownloadIcon, EditIcon, EyeIcon
 } from '../components/Icons';
-import { auth, db, FieldValue } from '../firebase';
+import { auth } from '../firebase';
 
 interface GroupDetailPageProps {
   group: Group;
@@ -44,7 +44,7 @@ interface GroupDetailPageProps {
   onSendGroupMessage: (groupId: string, text: string) => void;
   onRemoveGroupMember: (groupId: string, memberId: string) => void;
   onToggleFollowGroup: (groupId: string) => void;
-  onUpdateGroup: (groupId: string, data: { name: string; description: string; category: GroupCategory; privacy: GroupPrivacy }) => void;
+    onUpdateGroup: (groupId: string, data: Partial<Group>) => void;
 }
 
 const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
@@ -108,10 +108,6 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     const handleAddResource = async (e: React.FormEvent) => {
         e.preventDefault();
         if (newResourceTitle.trim() && newResourceLink.trim()) {
-            if (!db || !FieldValue) {
-                alert("Database services are currently unavailable.");
-                return;
-            }
             const newResource: GroupResource = {
                 id: Date.now().toString(),
                 title: newResourceTitle,
@@ -121,8 +117,8 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                 timestamp: Date.now()
             };
 
-            await db.collection('groups').doc(group.id).update({
-                resources: FieldValue.arrayUnion(newResource)
+            onUpdateGroup(group.id, {
+                resources: [...(group.resources || []), newResource]
             });
 
             setNewResourceTitle('');
@@ -133,19 +129,17 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
 
     const handleDeleteResource = async (resource: GroupResource) => {
         if(window.confirm("Remove this resource?")) {
-            if (!db || !FieldValue) return;
-             await db.collection('groups').doc(group.id).update({
-                resources: FieldValue.arrayRemove(resource)
+            onUpdateGroup(group.id, {
+                resources: (group.resources || []).filter(r => r.id !== resource.id)
             });
         }
     }
 
     const handleToggleVisibility = async (setting: keyof NonNullable<Group['visibilitySettings']>) => {
-        if (!db) return;
         const currentSettings = group.visibilitySettings || defaultVisibility;
         const newSettings = { ...currentSettings, [setting]: !currentSettings[setting] };
 
-        await db.collection('groups').doc(group.id).update({
+        onUpdateGroup(group.id, {
             visibilitySettings: newSettings
         });
     };
