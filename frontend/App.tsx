@@ -133,12 +133,25 @@ const App = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Listen for storage events (for fallback login synchronization)
+  // Listen for storage events (for backend token synchronization)
   useEffect(() => {
       const handleStorageChange = () => {
-          const storedUser = localStorage.getItem('user');
-          if (storedUser) {
-              setCurrentUser(JSON.parse(storedUser));
+          const storedUserString = localStorage.getItem('user');
+          if (storedUserString) {
+              try {
+                  const storedUser = JSON.parse(storedUserString);
+                  // Reactive merge: Merge the backend token from localStorage into the current state
+                  // to avoid overwriting Firestore profile data.
+                  setCurrentUser(prev => {
+                      if (!prev) return storedUser; // Fallback for manual login
+                      if (prev.id === storedUser.id) {
+                          return { ...prev, token: storedUser.token };
+                      }
+                      return prev;
+                  });
+              } catch (e) {
+                  console.error("Failed to parse stored user", e);
+              }
           } else if (!auth?.currentUser) {
               setCurrentUser(null);
           }
@@ -210,7 +223,21 @@ const App = () => {
             // Fetch profile from Firestore
             const userDoc = await db.collection('users').doc(user.uid).get();
             if (userDoc.exists) {
-                const userData = { ...userDoc.data(), id: user.uid };
+                let userData = { ...userDoc.data(), id: user.uid };
+
+                // Sync backend token from localStorage if available
+                const storedUserString = localStorage.getItem('user');
+                if (storedUserString) {
+                    try {
+                        const storedUser = JSON.parse(storedUserString);
+                        if (storedUser.id === user.uid && storedUser.token) {
+                            userData.token = storedUser.token;
+                        }
+                    } catch (e) {
+                        console.error("Error parsing stored user for token sync", e);
+                    }
+                }
+
                 setCurrentUser(userData);
                 setAuthUserId(user.uid);
             } else {

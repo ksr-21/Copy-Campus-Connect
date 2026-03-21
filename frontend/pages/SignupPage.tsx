@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { auth, db, storage } from '../firebase';
 import type { User } from '../types';
+import { syncBackendToken } from '../utils/authUtils';
 import { MailIcon, LockIcon, CameraIcon, ArrowLeftIcon, CheckCircleIcon, BuildingIcon, UserIcon, ShieldIcon, XCircleIcon } from '../components/Icons';
 
 interface SignupPageProps {
@@ -82,6 +83,9 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
             };
 
             await db.collection('users').doc(user.uid).set(userData);
+
+            // Synchronize with MongoDB Backend
+            await syncBackendToken(email, password);
         } catch (err: any) {
             setError(err.message || 'An error occurred during signup.');
         } finally {
@@ -124,6 +128,9 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
             };
 
             await db.collection('users').doc(user.uid).set(userData);
+
+            // Synchronize with MongoDB Backend
+            await syncBackendToken(email, password);
         } catch (err: any) {
              setError(err.message);
         } finally {
@@ -163,6 +170,9 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
             };
 
             await db.collection('users').doc(user.uid).set(userData);
+
+            // Synchronize with MongoDB Backend
+            await syncBackendToken(email, password);
         } catch (err: any) {
             setError(err.message);
         } finally {
