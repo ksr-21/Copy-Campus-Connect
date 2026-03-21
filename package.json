@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "frontend": "cd frontend && npm run dev",
     "install-all": "npm install && cd frontend && npm install",
-    "fullstack": "npm run dev & npm run frontend"
+    "fullstack": "npm run dev & npm run frontend",
+    "test": "jest --forceExit"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

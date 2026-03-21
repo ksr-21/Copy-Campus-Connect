@@ -8,7 +8,7 @@ const {
 } = require('../controllers/storyController');
 const { protect } = require('../middleware/auth');
 
-router.route('/').get(getStories).post(protect, createStory);
+router.route('/').get(protect, getStories).post(protect, createStory);
 router.route('/:id').delete(protect, deleteStory);
 router.post('/:id/view', protect, markStoryAsViewed);
 

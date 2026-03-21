@@ -6,7 +6,7 @@ import { api } from '../api';
  * Attempts to login, and if the user doesn't exist, performs an auto-migration (registration).
  * Stores the resulting token in localStorage and dispatches a storage event.
  */
-export const syncBackendToken = async (email: string, password?: string, profileData?: any): Promise<void> => {
+export const syncBackendToken = async (email: string, password?: string, profileData?: any, firebaseUid?: string): Promise<void> => {
     if (!email || !password) return;
 
     try {
@@ -27,7 +27,8 @@ export const syncBackendToken = async (email: string, password?: string, profile
                 email,
                 password,
                 name: email.split('@')[0], // Fallback name
-                ...profileData
+                ...profileData,
+                firebaseUid
             });
             const userData = { ...registerData, id: registerData._id };
             localStorage.setItem('user', JSON.stringify(userData));

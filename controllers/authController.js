@@ -3,7 +3,20 @@ const User = require('../models/User');
 
 const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password, tag, department, collegeId, yearOfStudy, rollNo, division } = req.body;
+    const {
+      name,
+      email,
+      password,
+      tag,
+      department,
+      collegeId,
+      yearOfStudy,
+      rollNo,
+      division,
+      avatarUrl,
+      requestedCollegeName,
+      firebaseUid
+    } = req.body;
 
     if (!name || !email || !password) {
       res.status(400);
@@ -27,6 +40,9 @@ const registerUser = async (req, res, next) => {
       yearOfStudy,
       rollNo,
       division,
+      profilePicture: avatarUrl,
+      requestedCollegeName,
+      firebaseUid,
       isRegistered: true,
       isApproved: tag === 'Super Admin' || tag === 'Director' ? false : true, // Auto approve students/teachers for now, or follow logic
     });

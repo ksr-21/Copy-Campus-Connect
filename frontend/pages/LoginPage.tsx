@@ -38,7 +38,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
 
                 if (user) {
                     // Synchronize with MongoDB Backend (Login or Auto-Migration)
-                    await syncBackendToken(email, password);
+                    await syncBackendToken(email, password, undefined, user.uid);
                 }
             } else {
                 // Fallback: Backend API

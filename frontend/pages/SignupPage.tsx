@@ -81,7 +81,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                 department,
                 avatarUrl,
                 tag: 'Student'
-            });
+            }, user.uid);
         } catch (err: any) {
             setError(err.message || 'An error occurred during signup.');
         } finally {
@@ -116,7 +116,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                 name,
                 tag: 'Super Admin',
                 department: 'Administration'
-            });
+            }, userCredential.user?.uid);
         } catch (err: any) {
              setError(err.message);
         } finally {
@@ -148,7 +148,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                 tag: 'Director',
                 department: 'Administration',
                 requestedCollegeName: collegeName
-            });
+            }, userCredential.user?.uid);
         } catch (err: any) {
             setError(err.message);
         } finally {

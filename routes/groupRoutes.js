@@ -15,11 +15,11 @@ const {
 } = require('../controllers/groupController');
 const { protect } = require('../middleware/auth');
 
-router.route('/').get(getGroups).post(protect, createGroup);
+router.route('/').get(protect, getGroups).post(protect, createGroup);
 
 router
   .route('/:id')
-  .get(getGroup)
+  .get(protect, getGroup)
   .put(protect, updateGroup)
   .delete(protect, deleteGroup);
 

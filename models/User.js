@@ -84,6 +84,11 @@ const userSchema = mongoose.Schema(
       default: false,
     },
     requestedCollegeName: String,
+    firebaseUid: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
   },
   {
     timestamps: true,
