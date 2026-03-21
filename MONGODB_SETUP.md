@@ -68,3 +68,31 @@ Open your browser and go to: `http://localhost:5000/api/health`.
 - **Error: "Authentication Failed":** Check your username and password in the `MONGO_URI`. Special characters (like `@`) in passwords must be URL-encoded.
 - **Error: "ECONNREFUSED":** Ensure MongoDB is actually running (for local setup) or that your IP is whitelisted (for Atlas).
 - **Frontend not loading:** Ensure you ran `npm install` inside the `frontend` folder and that the backend is running on port 5000.
+
+---
+
+## 6. Vercel Deployment Instructions
+
+To connect your MongoDB to Vercel hosting, follow these steps:
+
+### A. MongoDB Atlas Configuration
+1. Ensure your MongoDB Atlas cluster allows connections from Vercel.
+2. Go to **Network Access** in Atlas and add `0.0.0.0/0` (Allows all IPs, necessary as Vercel uses dynamic IPs).
+3. Copy your connection string.
+
+### B. Vercel Project Configuration
+1. Open your project in the **Vercel Dashboard**.
+2. Go to **Settings** -> **Environment Variables**.
+3. Add the following keys:
+   - `MONGO_URI`: Your MongoDB Atlas connection string.
+   - `JWT_SECRET`: A secure random string for authentication.
+   - `NODE_ENV`: `production`
+4. Click **Save**.
+
+### C. Redeploy
+1. Go to the **Deployments** tab.
+2. Click the three dots next to your latest deployment and select **Redeploy**.
+3. Once the build is finished, your Vercel-hosted app will be connected to your MongoDB database!
+
+### D. Verify
+Visit `https://your-vercel-domain.com/api/health` to confirm the database status is "connected".
