@@ -64,13 +64,15 @@ export const api = {
         return data;
     },
 
-    async delete(endpoint: string, token?: string) {
+    async delete(endpoint: string, token?: string, body?: any) {
         const authToken = token || getStoredToken();
         const response = await fetch(`${API_URL}${endpoint}`, {
             method: 'DELETE',
             headers: {
+                ...(body ? { 'Content-Type': 'application/json' } : {}),
                 ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
             },
+            ...(body ? { body: JSON.stringify(body) } : {}),
         });
         const data = await response.json();
         if (!response.ok) {

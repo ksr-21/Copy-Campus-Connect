@@ -29,6 +29,11 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/posts', require('./routes/postRoutes'));
 app.use('/api/groups', require('./routes/groupRoutes'));
+app.use('/api/colleges', require('./routes/collegeRoutes'));
+app.use('/api/courses', require('./routes/courseRoutes'));
+app.use('/api/notices', require('./routes/noticeRoutes'));
+app.use('/api/stories', require('./routes/storyRoutes'));
+app.use('/api/conversations', require('./routes/conversationRoutes'));
 
 // Serve frontend
 if (process.env.NODE_ENV === 'production') {

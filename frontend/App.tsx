@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { auth, db, storage, FieldValue } from './firebase';
+import { auth, storage } from './firebase';
 import { api } from './api';
 import type { User, Post, Group, Story, Course, Notice, Conversation, College, PersonalNote, UserTag, GroupCategory, GroupPrivacy, AttendanceRecord, Note, Assignment } from './types';
 
@@ -52,78 +52,72 @@ const App = () => {
     }
   };
 
-  // 0. Listen to Firebase Realtime Data (Conditional)
+  // 0. Fetch Data from MongoDB (Periodic Polling)
   useEffect(() => {
-    if (!db || !currentUser) return;
+    if (!currentUser) return;
 
-    // Users
-    const unsubUsers = db.collection('users').onSnapshot((snapshot: any) => {
-        const usersData: { [key: string]: User } = {};
-        snapshot.forEach((doc: any) => {
-            const data = doc.data();
-            usersData[doc.id] = { ...data, id: doc.id };
-        });
-        setUsers(usersData);
-    });
+    const fetchData = async () => {
+        const token = currentUser.token;
+        const collegeId = currentUser.collegeId || '';
 
-    // Groups (Initial Fetch + Periodic Refresh if using API, or keep Firestore for realtime)
-    // For this task, we'll keep Firestore realtime BUT use API for mutations.
-    // However, the user asked to save to MongoDB.
-    // To see MongoDB data, we should fetch from API.
-    let groupsInterval: any;
-    if (currentUser) {
-        const fetchGroups = async () => {
-            try {
-                const data = await api.get('/groups', currentUser.token);
-                setGroups(data.map((g: any) => ({ ...g, id: g._id })));
-            } catch (err) {
-                console.error("Failed to fetch groups from MongoDB", err);
-            }
-        };
+        try {
+            const data = await api.get('/auth/users', token);
+            const usersData: { [key: string]: User } = {};
+            data.forEach((u: any) => {
+                usersData[u._id] = { ...u, id: u._id };
+            });
+            setUsers(usersData);
+        } catch (err) {
+            console.error("Failed to fetch users", err);
+        }
 
-        fetchGroups();
-        groupsInterval = setInterval(fetchGroups, 10000); // Poll every 10s as a simple alternative to onSnapshot
-    }
+        try {
+            const data = await api.get('/groups', token);
+            setGroups(data.map((g: any) => ({ ...g, id: g._id })));
+        } catch (err) {
+            console.error("Failed to fetch groups", err);
+        }
 
-    // Stories
-    const unsubStories = db.collection('stories').onSnapshot((snapshot: any) => {
-        const storiesData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
-        setStories(storiesData);
-    });
+        try {
+            const data = await api.get(`/stories?collegeId=${collegeId}`, token);
+            setStories(data.map((s: any) => ({ ...s, id: s._id })));
+        } catch (err) {
+            console.error("Failed to fetch stories", err);
+        }
 
-    // Courses
-    const unsubCourses = db.collection('courses').onSnapshot((snapshot: any) => {
-        const coursesData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
-        setCourses(coursesData);
-    });
+        try {
+            const data = await api.get(`/courses?collegeId=${collegeId}`, token);
+            setCourses(data.map((c: any) => ({ ...c, id: c._id })));
+        } catch (err) {
+            console.error("Failed to fetch courses", err);
+        }
 
-    // Notices
-    const unsubNotices = db.collection('notices').onSnapshot((snapshot: any) => {
-        const noticesData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
-        setNotices(noticesData);
-    });
+        try {
+            const data = await api.get(`/notices?collegeId=${collegeId}`, token);
+            setNotices(data.map((n: any) => ({ ...n, id: n._id })));
+        } catch (err) {
+            console.error("Failed to fetch notices", err);
+        }
 
-    // Conversations
-    const unsubConvos = db.collection('conversations').onSnapshot((snapshot: any) => {
-        const convosData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
-        setConversations(convosData);
-    });
+        try {
+            const data = await api.get('/conversations', token);
+            setConversations(data.map((c: any) => ({ ...c, id: c._id })));
+        } catch (err) {
+            console.error("Failed to fetch conversations", err);
+        }
 
-    // Colleges
-    const unsubColleges = db.collection('colleges').onSnapshot((snapshot: any) => {
-        const collegesData = snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id }));
-        setColleges(collegesData);
-    });
-
-    return () => {
-        unsubUsers();
-        clearInterval(groupsInterval);
-        unsubStories();
-        unsubCourses();
-        unsubNotices();
-        unsubConvos();
-        unsubColleges();
+        try {
+            const data = await api.get('/colleges', token);
+            setColleges(data.map((c: any) => ({ ...c, id: c._id })));
+        } catch (err) {
+            console.error("Failed to fetch colleges", err);
+        }
     };
+
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
+
+    return () => clearInterval(interval);
   }, [currentUser]);
 
   // Backend Health Check
@@ -213,41 +207,34 @@ const App = () => {
         }
     }
 
-    if (!auth || !db) {
+    if (!auth) {
         setLoading(false);
         return;
     }
 
     const unsubscribe = auth.onAuthStateChanged(async (user: any) => {
         if (user) {
-            // Fetch profile from Firestore
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            if (userDoc.exists) {
-                let userData = { ...userDoc.data(), id: user.uid };
-
-                // Sync backend token from localStorage if available
-                const storedUserString = localStorage.getItem('user');
-                if (storedUserString) {
-                    try {
-                        const storedUser = JSON.parse(storedUserString);
-                        if (storedUser.id === user.uid && storedUser.token) {
-                            userData.token = storedUser.token;
-                        } else if (!storedUser.token) {
-                             console.warn("User found in localStorage but backend token is missing.");
+            setAuthUserId(user.uid);
+            // Check localStorage for backend session
+            const storedUserString = localStorage.getItem('user');
+            if (storedUserString) {
+                try {
+                    const storedUser = JSON.parse(storedUserString);
+                    if (storedUser.id === user.uid && storedUser.token) {
+                        // We have a token, fetch fresh profile from MongoDB
+                        try {
+                            const userData = await api.get('/auth/me', storedUser.token);
+                            setCurrentUser({ ...userData, id: userData._id, token: storedUser.token });
+                        } catch (err) {
+                            console.error("Failed to fetch user from MongoDB", err);
+                            setCurrentUser(storedUser); // Fallback to stored
                         }
-                    } catch (e) {
-                        console.error("Error parsing stored user for token sync", e);
+                    } else {
+                        setCurrentUser(null);
                     }
-                } else {
-                    console.warn("No 'user' object found in localStorage for token synchronization.");
+                } catch (e) {
+                    console.error("Error parsing stored user", e);
                 }
-
-                setCurrentUser(userData);
-                setAuthUserId(user.uid);
-            } else {
-                // Handle case where auth user exists but Firestore doc doesn't
-                setCurrentUser(null);
-                setAuthUserId(null);
             }
         } else {
             // Only clear state if there's no manual session in localStorage
@@ -348,19 +335,17 @@ const App = () => {
   };
 
   const handleToggleSavePost = async (postId: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      if (currentUser.savedPosts?.includes(postId)) {
-          await db.collection('users').doc(currentUser.id).update({
-              savedPosts: FieldValue.arrayRemove(postId)
-          });
-      } else {
-          await db.collection('users').doc(currentUser.id).update({
-              savedPosts: FieldValue.arrayUnion(postId)
-          });
+      const isSaved = currentUser.savedPosts?.includes(postId);
+      const newSavedPosts = isSaved
+          ? currentUser.savedPosts?.filter(id => id !== postId)
+          : [...(currentUser.savedPosts || []), postId];
+
+      try {
+          const updatedUser = await api.put('/auth/profile', { savedPosts: newSavedPosts }, currentUser.token);
+          setCurrentUser(prev => prev ? { ...prev, savedPosts: updatedUser.savedPosts } : null);
+      } catch (err: any) {
+          console.error("Failed to toggle save post", err);
       }
   };
 
@@ -399,34 +384,36 @@ const App = () => {
 
   // Stories
   const handleAddStory = async (storyDetails: any) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      const newStory = {
-          ...storyDetails,
-          authorId: currentUser.id,
-          timestamp: Date.now(),
-          viewedBy: [],
-          collegeId: currentUser.collegeId
-      };
-      await db.collection('stories').add(newStory);
+      try {
+          const newStory = await api.post('/stories', {
+              ...storyDetails,
+              collegeId: currentUser.collegeId
+          }, currentUser.token);
+          setStories(prev => [{ ...newStory, id: newStory._id }, ...prev]);
+      } catch (err: any) {
+          console.error("Failed to add story", err);
+      }
   };
 
   const handleMarkStoryAsViewed = async (storyId: string) => {
-      if (!db || !FieldValue || !currentUser) return;
-      await db.collection('stories').doc(storyId).update({
-          viewedBy: FieldValue.arrayUnion(currentUser.id)
-      });
+      if (!currentUser) return;
+      try {
+          const viewedBy = await api.post(`/stories/${storyId}/view`, {}, currentUser.token);
+          setStories(prev => prev.map(s => s.id === storyId ? { ...s, viewedBy } : s));
+      } catch (err: any) {
+          console.error("Failed to mark story as viewed", err);
+      }
   };
 
   const handleDeleteStory = async (storyId: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          await api.delete(`/stories/${storyId}`, currentUser.token);
+          setStories(prev => prev.filter(s => s.id !== storyId));
+      } catch (err: any) {
+          console.error("Failed to delete story", err);
       }
-      await db.collection('stories').doc(storyId).delete();
   };
 
   const handleReplyToStory = async (authorId: string, text: string) => {
@@ -437,69 +424,56 @@ const App = () => {
   // Chat
   const handleCreateOrOpenConversation = async (otherUserId: string): Promise<string> => {
       if (!currentUser) throw new Error("Not logged in");
-      if (!db) throw new Error("Database unavailable");
-      const existing = conversations.find(c => !c.isGroupChat && c.participantIds.includes(currentUser.id) && c.participantIds.includes(otherUserId));
-      if (existing) return existing.id;
-
-      const newConvoRef = await db.collection('conversations').add({
-          participantIds: [currentUser.id, otherUserId],
-          messages: [],
-          collegeId: currentUser.collegeId
-      });
-      return newConvoRef.id;
+      try {
+          const conversation = await api.post('/conversations', { otherUserId }, currentUser.token);
+          setConversations(prev => {
+              const exists = prev.find(c => c.id === conversation._id);
+              if (exists) return prev;
+              return [...prev, { ...conversation, id: conversation._id }];
+          });
+          return conversation._id;
+      } catch (err: any) {
+          throw err;
+      }
   };
 
   const handleSendMessage = async (conversationId: string, text: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      const newMessage = {
-          id: Date.now().toString(),
-          senderId: currentUser.id,
-          text,
-          timestamp: Date.now()
-      };
-      await db.collection('conversations').doc(conversationId).update({
-          messages: FieldValue.arrayUnion(newMessage)
-      });
+      try {
+          const newMessage = await api.post(`/conversations/${conversationId}/messages`, { text }, currentUser.token);
+          setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, messages: [...c.messages, newMessage] } : c));
+      } catch (err: any) {
+          console.error("Failed to send message", err);
+      }
   };
 
   const handleDeleteMessagesForEveryone = async (conversationId: string, messageIds: string[]) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedMessages = await api.delete(`/conversations/${conversationId}/messages`, currentUser.token, { messageIds });
+          setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, messages: updatedMessages } : c));
+      } catch (err: any) {
+          console.error("Failed to delete messages for everyone", err);
       }
-      const convo = conversations.find(c => c.id === conversationId);
-      if (!convo) return;
-      const updatedMessages = convo.messages.filter(m => !messageIds.includes(m.id));
-      await db.collection('conversations').doc(conversationId).update({ messages: updatedMessages });
   };
 
   const handleDeleteMessagesForSelf = async (conversationId: string, messageIds: string[]) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedMessages = await api.delete(`/conversations/${conversationId}/messages/self`, currentUser.token, { messageIds });
+          setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, messages: updatedMessages } : c));
+      } catch (err: any) {
+          console.error("Failed to delete messages for self", err);
       }
-      const convo = conversations.find(c => c.id === conversationId);
-      if (!convo) return;
-      const updatedMessages = convo.messages.map(m => {
-          if (messageIds.includes(m.id)) {
-              return { ...m, deletedFor: [...(m.deletedFor || []), currentUser?.id] };
-          }
-          return m;
-      });
-      await db.collection('conversations').doc(conversationId).update({ messages: updatedMessages });
   };
 
   const handleDeleteConversations = async (conversationIds: string[]) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
-      for (const id of conversationIds) {
-          await db.collection('conversations').doc(id).delete();
+      if (!currentUser) return;
+      try {
+          await api.delete('/conversations', currentUser.token, { conversationIds });
+          setConversations(prev => prev.filter(c => !conversationIds.includes(c.id)));
+      } catch (err: any) {
+          console.error("Failed to delete conversations", err);
       }
   };
 
@@ -552,16 +526,19 @@ const App = () => {
 
   const handleToggleFollowGroup = async (groupId: string) => {
       if (!currentUser) return;
+      const isFollowing = currentUser.followingGroups?.includes(groupId);
+      const newFollowingGroups = isFollowing
+          ? currentUser.followingGroups?.filter(id => id !== groupId)
+          : [...(currentUser.followingGroups || []), groupId];
+
       try {
+          // The backend /groups/:id/follow already handles the logic and returns status
+          // We update the User profile in MongoDB too
+          const updatedUser = await api.put('/auth/profile', { followingGroups: newFollowingGroups }, currentUser.token);
+          setCurrentUser(prev => prev ? { ...prev, followingGroups: updatedUser.followingGroups } : null);
+
+          // Also notify group followers (optional, as polling will handle it, but for immediate feedback)
           await api.post(`/groups/${groupId}/follow`, {}, currentUser.token);
-          // Update local state for immediate feedback (Firestore fallback if enabled)
-          if (db && FieldValue && auth?.currentUser) {
-             const isFollowing = currentUser.followingGroups?.includes(groupId);
-             await db.collection('users').doc(currentUser.id).update({
-                 followingGroups: isFollowing ? FieldValue.arrayRemove(groupId) : FieldValue.arrayUnion(groupId)
-             });
-          }
-          // Note: In a full MongoDB migration, we would update the User model in MongoDB here.
       } catch (err: any) {
           console.error("Failed to toggle follow", err);
       }
@@ -609,304 +586,254 @@ const App = () => {
 
   // Profile
   const handleAddAchievement = async (achievement: any) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      await db.collection('users').doc(currentUser.id).update({
-          achievements: FieldValue.arrayUnion(achievement)
-      });
+      try {
+          const newAchievements = [...(currentUser.achievements || []), achievement];
+          const updatedUser = await api.put('/auth/profile', { achievements: newAchievements }, currentUser.token);
+          setCurrentUser(prev => prev ? { ...prev, achievements: updatedUser.achievements } : null);
+      } catch (err: any) {
+          console.error("Failed to add achievement", err);
+      }
   };
 
   const handleAddInterest = async (interest: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      await db.collection('users').doc(currentUser.id).update({
-          interests: FieldValue.arrayUnion(interest)
-      });
+      try {
+          const newInterests = [...(currentUser.interests || []), interest];
+          const updatedUser = await api.put('/auth/profile', { interests: newInterests }, currentUser.token);
+          setCurrentUser(prev => prev ? { ...prev, interests: updatedUser.interests } : null);
+      } catch (err: any) {
+          console.error("Failed to add interest", err);
+      }
   };
 
   const handleUpdateProfile = async (updateData: any, avatarFile?: File | null) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
       let avatarUrl = currentUser.avatarUrl;
 
       if (avatarFile && storage) {
-          const storageRef = storage.ref().child(`avatars/${currentUser.id}`);
-          const snapshot = await storageRef.put(avatarFile);
-          avatarUrl = await snapshot.ref.getDownloadURL();
+          try {
+              const storageRef = storage.ref().child(`avatars/${currentUser.id}`);
+              const snapshot = await storageRef.put(avatarFile);
+              avatarUrl = await snapshot.ref.getDownloadURL();
+          } catch (err) {
+              console.error("Failed to upload avatar to Firebase Storage", err);
+          }
       }
 
-      await db.collection('users').doc(currentUser.id).update({
-          ...updateData,
-          avatarUrl
-      });
+      try {
+          const updatedUser = await api.put('/auth/profile', { ...updateData, avatarUrl }, currentUser.token);
+          setCurrentUser(prev => prev ? { ...prev, ...updatedUser } : null);
+      } catch (err: any) {
+          console.error("Failed to update profile", err);
+      }
   };
 
   // Academics & Courses
   const handleCreateCourse = async (courseData: any) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      await db.collection('courses').add({
-          facultyId: currentUser.id, // Default to creator, but allow override
-          ...courseData,
-          collegeId: currentUser.collegeId,
-      });
+      try {
+          const newCourse = await api.post('/courses', {
+              ...courseData,
+              collegeId: currentUser.collegeId,
+          }, currentUser.token);
+          setCourses(prev => [...prev, { ...newCourse, id: newCourse._id }]);
+      } catch (err: any) {
+          console.error("Failed to create course", err);
+      }
   };
 
   const handleUpdateCourse = async (courseId: string, data: any) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedCourse = await api.put(`/courses/${courseId}`, data, currentUser.token);
+          setCourses(prev => prev.map(c => c.id === courseId ? { ...updatedCourse, id: updatedCourse._id } : c));
+      } catch (err: any) {
+          console.error("Failed to update course", err);
       }
-      await db.collection('courses').doc(courseId).update(data);
   };
 
   const handleDeleteCourse = async (courseId: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          await api.delete(`/courses/${courseId}`, currentUser.token);
+          setCourses(prev => prev.filter(c => c.id !== courseId));
+      } catch (err: any) {
+          console.error("Failed to delete course", err);
       }
-      await db.collection('courses').doc(courseId).delete();
   };
 
   const handleRequestToJoinCourse = async (courseId: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      await db.collection('courses').doc(courseId).update({
-          pendingStudents: FieldValue.arrayUnion(currentUser.id)
-      });
+      try {
+          const updatedCourse = await api.post(`/courses/${courseId}/join`, {}, currentUser.token);
+          setCourses(prev => prev.map(c => c.id === courseId ? { ...updatedCourse, id: updatedCourse._id } : c));
+      } catch (err: any) {
+          console.error("Failed to request to join course", err);
+      }
   };
 
   const handleUpdateCourseFaculty = async (courseId: string, newFacultyId: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedCourse = await api.put(`/courses/${courseId}`, { facultyId: newFacultyId }, currentUser.token);
+          setCourses(prev => prev.map(c => c.id === courseId ? { ...updatedCourse, id: updatedCourse._id } : c));
+      } catch (err: any) {
+          console.error("Failed to update course faculty", err);
       }
-      await db.collection('courses').doc(courseId).update({ facultyId: newFacultyId });
   };
 
   // Notices
   const handleCreateNotice = async (noticeData: any) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      await db.collection('notices').add({
-          ...noticeData,
-          authorId: currentUser.id,
-          collegeId: currentUser.collegeId,
-          timestamp: Date.now()
-      });
+      try {
+          const newNotice = await api.post('/notices', {
+              ...noticeData,
+              collegeId: currentUser.collegeId,
+          }, currentUser.token);
+          setNotices(prev => [{ ...newNotice, id: newNotice._id }, ...prev]);
+      } catch (err: any) {
+          console.error("Failed to create notice", err);
+      }
   };
 
   const handleDeleteNotice = async (noticeId: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          await api.delete(`/notices/${noticeId}`, currentUser.token);
+          setNotices(prev => prev.filter(n => n.id !== noticeId));
+      } catch (err: any) {
+          console.error("Failed to delete notice", err);
       }
-      await db.collection('notices').doc(noticeId).delete();
   };
 
   // Admin/HOD User Management
   const handleCreateUser = async (userData: any, password?: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const newUser = await api.post('/auth/register', {
+              ...userData,
+              password: password || 'temporaryPassword123', // Admin generated users need a temp password
+              collegeId: currentUser.collegeId,
+          }, currentUser.token);
+          setUsers(prev => ({ ...prev, [newUser._id]: { ...newUser, id: newUser._id } }));
+      } catch (err: any) {
+          console.error("Failed to create user", err);
       }
-      const newRef = db.collection('users').doc();
-      // If isRegistered is passed (e.g. true), respect it. Otherwise default to false.
-      const isRegistered = userData.isRegistered !== undefined ? userData.isRegistered : false;
-
-      await newRef.set({
-          ...userData,
-          email: userData.email.toLowerCase(), // Normalize email for consistent login/lookup
-          collegeId: currentUser?.collegeId, // IMPORTANT: Must inherit collegeId for user to see dashboard
-          isRegistered: isRegistered,
-          createdAt: Date.now(),
-          createdBy: currentUser?.id
-      });
   };
 
   const handleCreateUsersBatch = async (usersData: any[]) => {
-      if (!db) return { successCount: 0, errors: ["Database unavailable"] };
-      const chunkSize = 450;
+      if (!currentUser) return { successCount: 0, errors: ["Not logged in"] };
       let successCount = 0;
       const errors: any[] = [];
 
-      for (let i = 0; i < usersData.length; i += chunkSize) {
-          const batch = db.batch();
-          const chunk = usersData.slice(i, i + chunkSize);
-
-          for (const u of chunk) {
-              const email = u.email.toLowerCase();
-              const existing = (Object.values(users) as User[]).find(existingUser => existingUser.email === email);
-              if (existing) {
-                  errors.push({ email: u.email, reason: "Email already exists" });
-                  continue;
-              }
-
-              const newRef = db.collection('users').doc();
-              batch.set(newRef, {
-                  ...u,
-                  email: email,
-                  collegeId: currentUser?.collegeId,
-                  isRegistered: false,
-                  isApproved: true, // Auto-approve when created by admin
-                  createdAt: Date.now(),
-                  createdBy: currentUser?.id
-              });
+      for (const u of usersData) {
+          try {
+              await handleCreateUser(u);
               successCount++;
-          }
-          if (chunk.length > 0) {
-             await batch.commit();
+          } catch (err: any) {
+              errors.push({ email: u.email, reason: err.message });
           }
       }
       return { successCount, errors };
   };
 
   const handleApproveTeacherRequest = async (userId: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
-      await db.collection('users').doc(userId).update({ isApproved: true });
+      if (!currentUser) return;
+      try {
+          const updatedUser = await api.put(`/auth/users/${userId}`, { isApproved: true }, currentUser.token);
+          setUsers(prev => ({ ...prev, [userId]: { ...prev[userId], isApproved: true } }));
+      } catch (err) {}
   };
 
   const handleDeclineTeacherRequest = async (userId: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
-      await db.collection('users').doc(userId).delete();
+      await onDeleteUser(userId);
   };
 
   const handleApproveHodRequest = async (userId: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
-      await db.collection('users').doc(userId).update({ isApproved: true });
+      if (!currentUser) return;
+      try {
+          const updatedUser = await api.put(`/auth/users/${userId}`, { isApproved: true }, currentUser.token);
+          setUsers(prev => ({ ...prev, [userId]: { ...prev[userId], isApproved: true } }));
+      } catch (err) {}
   };
 
   const handleDeclineHodRequest = async (userId: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
-      await db.collection('users').doc(userId).delete();
+      await onDeleteUser(userId);
   };
 
   const onDeleteUser = async (userId: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          await api.delete(`/auth/users/${userId}`, currentUser.token);
+          setUsers(prev => {
+              const updated = { ...prev };
+              delete updated[userId];
+              return updated;
+          });
+      } catch (err: any) {
+          console.error("Failed to delete user", err);
       }
-      await db.collection('users').doc(userId).delete();
   };
 
   const onToggleFreezeUser = async (userId: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
+      if (!currentUser) return;
       const user = users[userId];
-      await db.collection('users').doc(userId).update({ isFrozen: !user.isFrozen });
+      try {
+          const updatedUser = await api.put(`/auth/users/${userId}`, { isFrozen: !user.isFrozen }, currentUser.token);
+          setUsers(prev => ({ ...prev, [userId]: { ...prev[userId], isFrozen: !user.isFrozen } }));
+      } catch (err) {}
   };
 
   const onUpdateUserRole = async (userId: string, updateData: { tag: UserTag, department: string }) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
-      await db.collection('users').doc(userId).update(updateData);
+      if (!currentUser) return;
+      try {
+           const updatedUser = await api.put(`/auth/users/${userId}`, updateData, currentUser.token);
+           setUsers(prev => ({ ...prev, [userId]: { ...prev[userId], ...updateData } }));
+      } catch (err) {}
   }
 
   // Super Admin
   const handleCreateCollegeAdmin = async (collegeName: string, email: string, password: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
+      if (!currentUser) return;
       try {
-          const normalizedEmail = email.toLowerCase();
-          // 1. Create the User Invite Document first to get an ID
-          const userInviteRef = await db.collection('users').add({
-              email: normalizedEmail,
+          // 1. Create User (Director)
+          const newUser = await api.post('/auth/register', {
+              email: email.toLowerCase(),
               name: 'Director (Pending)',
               tag: 'Director',
-              isRegistered: false,
-              isApproved: true, // Manual add = Approved invite
-              createdAt: Date.now(),
-              createdBy: currentUser?.id
-          });
+              password: password,
+              isApproved: true,
+              requestedCollegeName: collegeName
+          }, currentUser.token);
 
-          // 2. Create the College Document with the User ID
-          const collegeRef = await db.collection('colleges').add({
+          // 2. Create College
+          const college = await api.post('/colleges', {
               name: collegeName,
-              adminUids: [userInviteRef.id], // Link immediately
-              departments: [],
-              createdAt: Date.now(),
-              createdBy: currentUser?.id
-          });
+              adminUids: [newUser._id],
+              departments: []
+          }, currentUser.token);
 
-          // 3. Update User with College ID and requestedCollegeName (for consistency)
-          await userInviteRef.update({
-              collegeId: collegeRef.id,
-              requestedCollegeName: collegeName // Optional but good for tracking
-          });
-
-          alert("College and Director Invite created successfully!");
+          // 3. Link College back to User
+          await api.put(`/auth/users/${newUser._id}`, { collegeId: college._id }, currentUser.token);
+          alert("College and Director created successfully!");
       } catch (error: any) {
           alert("Failed to create college: " + error.message);
       }
   };
 
   const handleApproveDirector = async (directorId: string, collegeName: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
+      if (!currentUser) return;
       try {
-          if (!currentUser) {
-              alert("Session expired. Please refresh.");
-              return;
-          }
-          if (!collegeName) {
-              alert("Invalid request: Missing college name.");
-              return;
-          }
-
           // 1. Create College
-          const collegeRef = await db.collection('colleges').add({
+          const college = await api.post('/colleges', {
               name: collegeName,
               adminUids: [directorId],
-              departments: [],
-              createdAt: Date.now(),
-              createdBy: currentUser.id
-          });
+              departments: []
+          }, currentUser.token);
 
-          // 2. Update Director User
-          await db.collection('users').doc(directorId).update({
-              isApproved: true,
-              collegeId: collegeRef.id,
-              requestedCollegeName: FieldValue ? FieldValue.delete() : undefined
-          });
-
+          // 2. Update Director User (approve and set collegeId)
+          await api.put(`/auth/users/${directorId}`, { isApproved: true, collegeId: college._id }, currentUser.token);
           alert("Director approved and college created successfully.");
       } catch (error: any) {
           console.error("Approval failed:", error);
@@ -916,29 +843,26 @@ const App = () => {
 
   // College Management
   const onUpdateCollegeDepartments = async (collegeId: string, departments: string[]) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          await api.put(`/colleges/${collegeId}`, { departments }, currentUser.token);
+      } catch (err: any) {
+          console.error("Failed to update college departments", err);
       }
-      await db.collection('colleges').doc(collegeId).update({ departments });
   };
 
   const onUpdateCollegeClasses = async (collegeId: string, department: string, classes: any) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          // This might need specific backend logic for nested Map update
+          await api.put(`/colleges/${collegeId}`, { [`classes.${department}`]: classes }, currentUser.token);
+      } catch (err: any) {
+          console.error("Failed to update college classes", err);
       }
-      await db.collection('colleges').doc(collegeId).update({
-          [`classes.${department}`]: classes
-      });
   };
 
   // Personal Notes
   const handleCreateNote = async (title: string, content: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
       const newNote = {
           id: Date.now().toString(),
@@ -946,144 +870,128 @@ const App = () => {
           content,
           timestamp: Date.now()
       };
-      await db.collection('users').doc(currentUser.id).update({
-          personalNotes: FieldValue.arrayUnion(newNote)
-      });
+      try {
+          const newNotes = [...(currentUser.personalNotes || []), newNote];
+          const updatedUser = await api.put('/auth/profile', { personalNotes: newNotes }, currentUser.token);
+          setCurrentUser(prev => prev ? { ...prev, personalNotes: updatedUser.personalNotes } : null);
+      } catch (err: any) {
+          console.error("Failed to create note", err);
+      }
   };
 
   const handleUpdateNote = async (noteId: string, title: string, content: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser || !currentUser.personalNotes) return;
       const updatedNotes = currentUser.personalNotes.map(n =>
           n.id === noteId ? { ...n, title, content, timestamp: Date.now() } : n
       );
-      await db.collection('users').doc(currentUser.id).update({ personalNotes: updatedNotes });
+      try {
+          const updatedUser = await api.put('/auth/profile', { personalNotes: updatedNotes }, currentUser.token);
+          setCurrentUser(prev => prev ? { ...prev, personalNotes: updatedUser.personalNotes } : null);
+      } catch (err: any) {
+          console.error("Failed to update note", err);
+      }
   };
 
   const handleDeleteNote = async (noteId: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser || !currentUser.personalNotes) return;
       const updatedNotes = currentUser.personalNotes.filter(n => n.id !== noteId);
-      await db.collection('users').doc(currentUser.id).update({ personalNotes: updatedNotes });
+      try {
+          const updatedUser = await api.put('/auth/profile', { personalNotes: updatedNotes }, currentUser.token);
+          setCurrentUser(prev => prev ? { ...prev, personalNotes: updatedUser.personalNotes } : null);
+      } catch (err: any) {
+          console.error("Failed to delete note", err);
+      }
   };
 
   // Course management
   const handleAddNote = async (courseId: string, note: { title: string, fileUrl: string, fileName: string }) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedCourse = await api.post(`/courses/${courseId}/resources`, { type: 'note', resource: note }, currentUser.token);
+          setCourses(prev => prev.map(c => c.id === courseId ? { ...updatedCourse, id: updatedCourse._id } : c));
+      } catch (err: any) {
+          console.error("Failed to add note", err);
       }
-      await db.collection('courses').doc(courseId).update({
-          notes: FieldValue.arrayUnion({ ...note, id: Date.now().toString(), uploadedAt: Date.now() })
-      });
   };
 
   const handleAddAssignment = async (courseId: string, assignment: { title: string, fileUrl: string, fileName: string, dueDate: number }) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedCourse = await api.post(`/courses/${courseId}/resources`, { type: 'assignment', resource: assignment }, currentUser.token);
+          setCourses(prev => prev.map(c => c.id === courseId ? { ...updatedCourse, id: updatedCourse._id } : c));
+      } catch (err: any) {
+          console.error("Failed to add assignment", err);
       }
-      await db.collection('courses').doc(courseId).update({
-          assignments: FieldValue.arrayUnion({ ...assignment, id: Date.now().toString(), postedAt: Date.now() })
-      });
   };
 
   const handleTakeAttendance = async (courseId: string, record: AttendanceRecord) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedCourse = await api.post(`/courses/${courseId}/attendance`, record, currentUser.token);
+          setCourses(prev => prev.map(c => c.id === courseId ? { ...updatedCourse, id: updatedCourse._id } : c));
+      } catch (err: any) {
+          console.error("Failed to take attendance", err);
       }
-      await db.collection('courses').doc(courseId).update({
-          attendanceRecords: FieldValue.arrayUnion(record)
-      });
   };
 
   const handleManageCourseRequest = async (courseId: string, studentId: string, action: 'approve' | 'reject') => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
-      if (action === 'approve') {
-          await db.collection('courses').doc(courseId).update({
-              pendingStudents: FieldValue.arrayRemove(studentId),
-              students: FieldValue.arrayUnion(studentId)
-          });
-      } else {
-          await db.collection('courses').doc(courseId).update({
-              pendingStudents: FieldValue.arrayRemove(studentId)
-          });
+      if (!currentUser) return;
+      try {
+          const updatedCourse = await api.post(`/courses/${courseId}/request/${studentId}`, { action }, currentUser.token);
+          setCourses(prev => prev.map(c => c.id === courseId ? { ...updatedCourse, id: updatedCourse._id } : c));
+      } catch (err: any) {
+          console.error("Failed to manage course request", err);
       }
   };
 
   const handleAddStudentsToCourse = async (courseId: string, studentIds: string[]) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedCourse = await api.post(`/courses/${courseId}/students`, { studentIds }, currentUser.token);
+          setCourses(prev => prev.map(c => c.id === courseId ? { ...updatedCourse, id: updatedCourse._id } : c));
+      } catch (err: any) {
+          console.error("Failed to add students to course", err);
       }
-      await db.collection('courses').doc(courseId).update({
-          students: FieldValue.arrayUnion(...studentIds)
-      });
   };
 
   const handleRemoveStudentFromCourse = async (courseId: string, studentId: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
+      if (!currentUser) return;
+      try {
+          const updatedCourse = await api.delete(`/courses/${courseId}/students/${studentId}`, currentUser.token);
+          setCourses(prev => prev.map(c => c.id === courseId ? { ...updatedCourse, id: updatedCourse._id } : c));
+      } catch (err: any) {
+          console.error("Failed to remove student from course", err);
       }
-      await db.collection('courses').doc(courseId).update({
-          students: FieldValue.arrayRemove(studentId)
-      });
   };
 
   const handleSendCourseMessage = async (courseId: string, text: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      const newMessage = {
-          id: Date.now().toString(),
-          senderId: currentUser.id,
-          text,
-          timestamp: Date.now()
-      };
-      await db.collection('courses').doc(courseId).update({
-          messages: FieldValue.arrayUnion(newMessage)
-      });
+      try {
+          const messages = await api.post(`/courses/${courseId}/messages`, { text }, currentUser.token);
+          setCourses(prev => prev.map(c => c.id === courseId ? { ...c, messages } : c));
+      } catch (err: any) {
+          console.error("Failed to send course message", err);
+      }
   };
 
   const handleUpdateCoursePersonalNote = async (courseId: string, note: string) => {
-      if (!db) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      await db.collection('courses').doc(courseId).update({
-          [`personalNotes.${currentUser.id}`]: note
-      });
+      try {
+          const updatedCourse = await api.put(`/courses/${courseId}/personal-note`, { note }, currentUser.token);
+          setCourses(prev => prev.map(c => c.id === courseId ? { ...updatedCourse, id: updatedCourse._id } : c));
+      } catch (err: any) {
+          console.error("Failed to update course personal note", err);
+      }
   };
 
   const handleSaveFeedback = async (courseId: string, rating: number, comment: string) => {
-      if (!db || !FieldValue) {
-          alert("Database unavailable.");
-          return;
-      }
       if (!currentUser) return;
-      const feedback = {
-          studentId: currentUser.id,
-          rating,
-          comment,
-          timestamp: Date.now()
-      };
-      await db.collection('courses').doc(courseId).update({
-          feedback: FieldValue.arrayUnion(feedback)
-      });
+      try {
+          const updatedCourse = await api.post(`/courses/${courseId}/feedback`, { rating, comment }, currentUser.token);
+          setCourses(prev => prev.map(c => c.id === courseId ? { ...updatedCourse, id: updatedCourse._id } : c));
+      } catch (err: any) {
+          console.error("Failed to save feedback", err);
+      }
   };
 
   if (loading) {
@@ -1303,7 +1211,7 @@ const App = () => {
                 if (!currentUser) return;
                 try {
                     const attendees = await api.post(`/posts/${eid}/register`, {}, currentUser.token);
-                    setPosts(prev => prev.map(p => p.id === eid ? { ...p, eventDetails: { ...p.eventDetails, attendees } } : p));
+                    setPosts(prev => prev.map(p => p.id === eid ? { ...p, eventDetails: p.eventDetails ? { ...p.eventDetails, attendees } : undefined } : p));
                 } catch (err) {
                     console.error("Failed to register for event", err);
                 }
@@ -1312,7 +1220,7 @@ const App = () => {
                 if (!currentUser) return;
                 try {
                     const attendees = await api.post(`/posts/${eid}/unregister`, {}, currentUser.token);
-                    setPosts(prev => prev.map(p => p.id === eid ? { ...p, eventDetails: { ...p.eventDetails, attendees } } : p));
+                    setPosts(prev => prev.map(p => p.id === eid ? { ...p, eventDetails: p.eventDetails ? { ...p.eventDetails, attendees } : undefined } : p));
                 } catch (err) {
                     console.error("Failed to unregister from event", err);
                 }

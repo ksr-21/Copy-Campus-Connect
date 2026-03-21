@@ -48,6 +48,42 @@ const userSchema = mongoose.Schema(
     yearOfStudy: Number,
     rollNo: String,
     division: String,
+    interests: [String],
+    skills: [String],
+    achievements: [
+      {
+        title: String,
+        description: String,
+      },
+    ],
+    savedPosts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Post',
+      },
+    ],
+    followingGroups: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Group',
+      },
+    ],
+    personalNotes: [
+      {
+        id: String,
+        title: String,
+        content: String,
+        timestamp: {
+          type: Number,
+          default: Date.now,
+        },
+      },
+    ],
+    isFrozen: {
+      type: Boolean,
+      default: false,
+    },
+    requestedCollegeName: String,
   },
   {
     timestamps: true,

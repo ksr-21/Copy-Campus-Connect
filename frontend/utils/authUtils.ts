@@ -1,4 +1,4 @@
-import { auth, db } from '../firebase';
+import { auth } from '../firebase';
 import { api } from '../api';
 
 /**
@@ -6,7 +6,7 @@ import { api } from '../api';
  * Attempts to login, and if the user doesn't exist, performs an auto-migration (registration).
  * Stores the resulting token in localStorage and dispatches a storage event.
  */
-export const syncBackendToken = async (email: string, password?: string): Promise<void> => {
+export const syncBackendToken = async (email: string, password?: string, profileData?: any): Promise<void> => {
     if (!email || !password) return;
 
     try {
@@ -14,23 +14,25 @@ export const syncBackendToken = async (email: string, password?: string): Promis
         const data = await api.post('/auth/login', { email, password });
         const userData = { ...data, id: data._id };
         localStorage.setItem('user', JSON.stringify(userData));
+
+        // If login successful but we have profile data, update it
+        if (profileData) {
+            const updatedUser = await api.put('/auth/profile', profileData, userData.token);
+            localStorage.setItem('user', JSON.stringify({ ...userData, ...updatedUser, id: updatedUser._id }));
+        }
     } catch (loginErr: any) {
-        // 2. Fallback: Auto-Migration (Registration) if user only exists in Firestore
-        if (db) {
-            const firebaseUser = auth?.currentUser;
-            if (firebaseUser) {
-                const userDoc = await db.collection('users').doc(firebaseUser.uid).get();
-                if (userDoc.exists) {
-                    const profile = userDoc.data();
-                    const registerData = await api.post('/auth/register', {
-                        ...profile,
-                        email,
-                        password, // Backend needs password for hashing
-                    });
-                    const userData = { ...registerData, id: registerData._id };
-                    localStorage.setItem('user', JSON.stringify(userData));
-                }
-            }
+        // Fallback: Attempt registration if login fails
+        try {
+            const registerData = await api.post('/auth/register', {
+                email,
+                password,
+                name: email.split('@')[0], // Fallback name
+                ...profileData
+            });
+            const userData = { ...registerData, id: registerData._id };
+            localStorage.setItem('user', JSON.stringify(userData));
+        } catch (regErr) {
+            console.error("Auto-migration/Registration failed", regErr);
         }
     } finally {
         // Notify App.tsx of the new token in localStorage

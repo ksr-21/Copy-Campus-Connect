@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { auth, db, storage } from '../firebase';
+import { auth, storage } from '../firebase';
 import type { User } from '../types';
 import { syncBackendToken } from '../utils/authUtils';
 import { MailIcon, LockIcon, CameraIcon, ArrowLeftIcon, CheckCircleIcon, BuildingIcon, UserIcon, ShieldIcon, XCircleIcon } from '../components/Icons';
@@ -48,7 +48,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
         e.preventDefault();
         setError('');
 
-        if (!auth || !db) {
+        if (!auth) {
             setError('Authentication services are unavailable.');
             return;
         }
@@ -62,30 +62,26 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
         try {
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
             const user = userCredential.user;
+            if (!user) throw new Error("Firebase user creation failed");
 
             let avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random`;
             if (avatarFile && storage) {
-                const storageRef = storage.ref().child(`avatars/${user.uid}`);
-                const snapshot = await storageRef.put(avatarFile);
-                avatarUrl = await snapshot.ref.getDownloadURL();
+                try {
+                    const storageRef = storage.ref().child(`avatars/${user.uid}`);
+                    const snapshot = await storageRef.put(avatarFile);
+                    avatarUrl = await snapshot.ref.getDownloadURL();
+                } catch (err) {
+                    console.error("Avatar upload failed, using default", err);
+                }
             }
 
-            const userData = {
-                id: user.uid,
+            // Synchronize with MongoDB Backend
+            await syncBackendToken(email, password, {
                 name,
-                email: email.toLowerCase(),
-                tag: 'Student',
                 department,
                 avatarUrl,
-                isApproved: true,
-                isRegistered: true,
-                createdAt: Date.now()
-            };
-
-            await db.collection('users').doc(user.uid).set(userData);
-
-            // Synchronize with MongoDB Backend
-            await syncBackendToken(email, password);
+                tag: 'Student'
+            });
         } catch (err: any) {
             setError(err.message || 'An error occurred during signup.');
         } finally {
@@ -97,7 +93,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
         e.preventDefault();
         setError('');
 
-        if (!auth || !db) {
+        if (!auth) {
             setError('Authentication services are unavailable.');
             return;
         }
@@ -114,23 +110,13 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
         setIsLoading(true);
         try {
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-            const user = userCredential.user;
-
-            const userData = {
-                id: user.uid,
-                name,
-                email: email.toLowerCase(),
-                tag: 'Super Admin',
-                department: 'Administration',
-                isApproved: true,
-                isRegistered: true,
-                createdAt: Date.now()
-            };
-
-            await db.collection('users').doc(user.uid).set(userData);
 
             // Synchronize with MongoDB Backend
-            await syncBackendToken(email, password);
+            await syncBackendToken(email, password, {
+                name,
+                tag: 'Super Admin',
+                department: 'Administration'
+            });
         } catch (err: any) {
              setError(err.message);
         } finally {
@@ -142,7 +128,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
         e.preventDefault();
         setError('');
 
-        if (!auth || !db) {
+        if (!auth) {
             setError('Authentication services are unavailable.');
             return;
         }
@@ -155,24 +141,14 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
         setIsLoading(true);
         try {
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-            const user = userCredential.user;
-
-            const userData = {
-                id: user.uid,
-                name,
-                email: email.toLowerCase(),
-                tag: 'Director',
-                department: 'Administration',
-                requestedCollegeName: collegeName,
-                isApproved: false,
-                isRegistered: true,
-                createdAt: Date.now()
-            };
-
-            await db.collection('users').doc(user.uid).set(userData);
 
             // Synchronize with MongoDB Backend
-            await syncBackendToken(email, password);
+            await syncBackendToken(email, password, {
+                name,
+                tag: 'Director',
+                department: 'Administration',
+                requestedCollegeName: collegeName
+            });
         } catch (err: any) {
             setError(err.message);
         } finally {
