@@ -1,8 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { auth } from '../firebase';
-import { api } from '../api';
-import { syncBackendToken } from '../utils/authUtils';
+import { backendLogin } from '../utils/authUtils';
 import { MailIcon, LockIcon } from '../components/Icons';
 
 interface LoginPageProps {
@@ -31,47 +29,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         setError('');
         setIsLoading(true);
         try {
-            if (auth) {
-                // Primary: Firebase Auth
-                const userCredential = await auth.signInWithEmailAndPassword(email, password);
-                const user = userCredential.user;
-
-                if (user) {
-                    // Synchronize with MongoDB Backend (Login or Auto-Migration)
-                    await syncBackendToken(email, password, undefined, user.uid);
-                }
-            } else {
-                // Fallback: Backend API
-                console.log("Firebase unavailable. Attempting fallback login via API...");
-                const data = await api.post('/auth/login', { email, password });
-
-                // Store session in localStorage for App.tsx to pickup
-                const userData = {
-                    ...data,
-                    id: data._id, // Map backend _id to id for frontend compatibility
-                    firebaseUid: data.firebaseUid
-                };
-                localStorage.setItem('user', JSON.stringify(userData));
-
-                // Dispatch event to notify App.tsx
-                window.dispatchEvent(new Event('storage'));
-            }
+            await backendLogin(email, password);
         } catch (err: any) {
             if (isMounted.current) {
-                // If Firebase failed, try API as a last resort before showing error
-                if (auth && err.code !== 'auth/wrong-password' && err.code !== 'auth/user-not-found') {
-                    try {
-                        const data = await api.post('/auth/login', { email, password });
-                        const userData = { ...data, id: data._id, firebaseUid: data.firebaseUid };
-                        localStorage.setItem('user', JSON.stringify(userData));
-                        window.dispatchEvent(new Event('storage'));
-                        return;
-                    } catch (fallbackErr: any) {
-                         setError(fallbackErr.message || "Authentication service is unavailable.");
-                    }
-                } else {
-                    setError(err.message);
-                }
+                setError(err.message || "Login failed. Please check your credentials.");
                 setIsLoading(false);
             }
         }
