@@ -74,13 +74,21 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    // Intercept file change if manually triggered, though we block the button now
-    setShowFeaturePopup(true);
-    return;
+    const files = event.target.files;
+    if (files) {
+        const newUrls: string[] = [];
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setMediaDataUrls(prev => [...prev, reader.result as string]);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
   };
 
   const triggerFeaturePopup = () => {
-      setShowFeaturePopup(true);
+      imageInputRef.current?.click();
   };
 
   const applyStyle = (e: React.MouseEvent, command: string) => {
@@ -431,33 +439,6 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
         </div>
     </div>
 
-    {/* Coming Soon Popup Modal */}
-    {showFeaturePopup && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4" onClick={() => setShowFeaturePopup(false)}>
-            <div className="bg-card p-8 rounded-3xl shadow-2xl border border-border max-w-sm w-full text-center transform transition-all scale-100 relative overflow-hidden" onClick={e => e.stopPropagation()}>
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary via-purple-500 to-secondary"></div>
-                <button onClick={() => setShowFeaturePopup(false)} className="absolute top-4 right-4 p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                    <CloseIcon className="w-5 h-5" />
-                </button>
-
-                <div className="w-20 h-20 bg-gradient-to-br from-emerald-400/20 to-blue-500/20 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ring-emerald-500/10">
-                    <SparkleIcon className="w-10 h-10 animate-pulse" />
-                </div>
-
-                <h3 className="text-2xl font-black text-foreground mb-2">Coming Soon! 📸</h3>
-                <p className="text-muted-foreground mb-8 text-sm leading-relaxed">
-                    Media uploads are currently in development. We're adding secure storage to bring you the best experience.
-                </p>
-
-                <button
-                    onClick={() => setShowFeaturePopup(false)}
-                    className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold text-sm hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all transform hover:scale-[1.02] active:scale-95"
-                >
-                    Got it
-                </button>
-            </div>
-        </div>
-    )}
     </>
   );
 };

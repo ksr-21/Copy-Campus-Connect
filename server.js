@@ -40,6 +40,7 @@ app.use('/api/courses', require('./routes/courseRoutes'));
 app.use('/api/notices', require('./routes/noticeRoutes'));
 app.use('/api/stories', require('./routes/storyRoutes'));
 app.use('/api/conversations', require('./routes/conversationRoutes'));
+app.use('/api/department-chats', require('./routes/departmentChatRoutes'));
 
 // Serve frontend
 if (process.env.NODE_ENV === 'production') {

@@ -8,7 +8,7 @@ interface ChatPanelProps {
   conversation: Conversation;
   currentUser: User;
   users: { [key: string]: User };
-  onSendMessage: (conversationId: string, text: string) => void;
+  onSendMessage: (conversationId: string, text: string, mediaDataUrl?: string, mediaType?: 'image' | 'video') => void;
   onDeleteMessagesForEveryone: (conversationId: string, messageIds: string[]) => void;
   onDeleteMessagesForSelf: (conversationId: string, messageIds: string[]) => void;
   onClose: () => void; // For mobile view to go back to list
@@ -70,6 +70,8 @@ const DeleteMessageModal: React.FC<{
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users, onSendMessage, onDeleteMessagesForEveryone, onDeleteMessagesForSelf, onClose, onNavigate }) => {
   const [text, setText] = useState('');
+  const [mediaDataUrl, setMediaDataUrl] = useState<string | undefined>();
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
@@ -128,9 +130,21 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (text.trim()) {
-      onSendMessage(conversation.id, text.trim());
+    if (text.trim() || mediaDataUrl) {
+      onSendMessage(conversation.id, text.trim(), mediaDataUrl, mediaDataUrl ? 'image' : undefined);
       setText('');
+      setMediaDataUrl(undefined);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setMediaDataUrl(reader.result as string);
+        };
+        reader.readAsDataURL(file);
     }
   };
 
@@ -259,6 +273,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
                             : 'bg-card text-card-foreground border border-border rounded-bl-lg shadow-sm'
                           )
                   }`}>
+                      {msg.mediaUrl && (
+                          <div className="mb-2 rounded-lg overflow-hidden max-w-full">
+                              <img src={msg.mediaUrl} alt="Message media" className="max-h-60 object-cover" />
+                          </div>
+                      )}
                       <p className="whitespace-pre-wrap break-words">{msg.text}</p>
                   </div>
                    <p className={`text-xs text-muted-foreground mt-1 px-1 ${isCurrentUser ? 'text-right' : 'text-left'}`}>{formatTimestamp(msg.timestamp)}</p>
@@ -272,7 +291,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
 
       {/* Input */}
       <div className="p-4 border-t border-border bg-background/80 backdrop-blur-sm">
+        {mediaDataUrl && (
+            <div className="mb-3 relative inline-block">
+                <img src={mediaDataUrl} alt="Preview" className="h-20 w-20 object-cover rounded-lg border border-border" />
+                <button onClick={() => setMediaDataUrl(undefined)} className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-1 shadow-sm"><CloseIcon className="w-3 h-3"/></button>
+            </div>
+        )}
         <form onSubmit={handleSubmit} className="flex items-center space-x-3">
+          <button type="button" onClick={() => imageInputRef.current?.click()} className="p-2 text-muted-foreground hover:text-primary transition-colors">
+              <span className="text-xl">🖼️</span>
+          </button>
+          <input type="file" ref={imageInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
           <input
             type="text"
             value={text}
@@ -280,7 +309,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
             placeholder="Type a message..."
             className="flex-1 bg-input border border-border rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary text-foreground transition shadow-sm placeholder:text-muted-foreground"
           />
-          <button type="submit" className="p-3 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:scale-100 transition-transform transform hover:scale-110" disabled={!text.trim()}>
+          <button type="submit" className="p-3 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:scale-100 transition-transform transform hover:scale-110" disabled={!text.trim() && !mediaDataUrl}>
             <SendIcon className="w-5 h-5" />
           </button>
         </form>

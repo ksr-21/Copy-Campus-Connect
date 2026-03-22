@@ -17,6 +17,11 @@ const conversationSchema = mongoose.Schema(
           ref: 'User',
         },
         text: String,
+        mediaUrl: String,
+        mediaType: {
+          type: String,
+          enum: ['image', 'video'],
+        },
         timestamp: {
           type: Number,
           default: Date.now,

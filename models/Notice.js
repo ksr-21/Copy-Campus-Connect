@@ -15,6 +15,11 @@ const noticeSchema = mongoose.Schema(
       type: String,
       required: [true, 'Please add content'],
     },
+    mediaUrl: String,
+    mediaType: {
+      type: String,
+      enum: ['image', 'video'],
+    },
     timestamp: {
       type: Number,
       default: Date.now,

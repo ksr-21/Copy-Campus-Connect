@@ -5,7 +5,7 @@ import { logout } from '../utils/authUtils';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
 import { auth } from '../firebase';
-import { MegaphoneIcon, PlusIcon, CloseIcon, ChevronDownIcon, TrashIcon, CheckSquareIcon } from '../components/Icons';
+import { MegaphoneIcon, PlusIcon, CloseIcon, ChevronDownIcon, TrashIcon, CheckSquareIcon, ClockIcon } from '../components/Icons';
 // FIX: Centralize constants by importing from constants.ts to remove local definitions.
 // FIX: `departmentOptions` is not in constants.ts; it is college-specific. Importing `yearOptions` only and defining a placeholder for departments.
 import { yearOptions } from '../constants';
@@ -26,10 +26,12 @@ interface NoticeBoardPageProps {
 // --- MODAL & SUB-COMPONENTS ---
 const CreateNoticeModal: React.FC<{
     onClose: () => void;
-    onCreateNotice: (noticeData: Omit<Notice, 'id' | 'authorId' | 'timestamp'>) => void;
+    onCreateNotice: (noticeData: any) => void;
 }> = ({ onClose, onCreateNotice }) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
+    const [mediaDataUrl, setMediaDataUrl] = useState<string | undefined>();
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [targetDepartments, setTargetDepartments] = useState<string[]>([]);
     const [targetYears, setTargetYears] = useState<number[]>([]);
     const editorRef = useRef<HTMLDivElement>(null);
@@ -47,12 +49,23 @@ const CreateNoticeModal: React.FC<{
         setTargetYears(prev => prev.includes(year) ? prev.filter(y => y !== year) : [...prev, year]);
     };
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setMediaDataUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSubmit = () => {
         if (!title.trim() || !editorRef.current?.innerText.trim()) {
             alert("Title and content cannot be empty.");
             return;
         }
-        onCreateNotice({ title, content, targetDepartments, targetYears });
+        onCreateNotice({ title, content, targetDepartments, targetYears, mediaDataUrl, mediaType: mediaDataUrl ? 'image' : undefined });
         onClose();
     };
 
@@ -70,9 +83,17 @@ const CreateNoticeModal: React.FC<{
                              <button onMouseDown={e => { e.preventDefault(); applyStyle('bold'); }} className="font-bold w-8 h-8 rounded hover:bg-muted">B</button>
                              <button onMouseDown={e => { e.preventDefault(); applyStyle('italic'); }} className="italic w-8 h-8 rounded hover:bg-muted">I</button>
                              <button onMouseDown={e => { e.preventDefault(); applyStyle('insertUnorderedList'); }} className="w-8 h-8 rounded hover:bg-muted">UL</button>
+                             <button onClick={() => fileInputRef.current?.click()} className="ml-auto text-muted-foreground hover:text-primary transition-colors">🖼️</button>
+                             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                         </div>
                         <div ref={editorRef} contentEditable onInput={handleInput} data-placeholder="Write your notice here..." className="w-full min-h-[150px] p-3 text-foreground bg-input focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-text-muted"/>
                     </div>
+                    {mediaDataUrl && (
+                        <div className="relative inline-block mt-2">
+                            <img src={mediaDataUrl} alt="Notice Preview" className="max-h-40 rounded-lg border border-border" />
+                            <button onClick={() => setMediaDataUrl(undefined)} className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-1 shadow-sm"><CloseIcon className="w-3 h-3"/></button>
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <h4 className="font-semibold text-text-muted mb-2">Target Departments (optional)</h4>
@@ -124,7 +145,35 @@ const NoticeBoardPage: React.FC<NoticeBoardPageProps> = (props) => {
                         New Notice
                     </button>
                 </div>
-                <div>Notices will be displayed here.</div>
+                <div className="grid gap-6">
+                    {notices.map(notice => (
+                        <div key={notice.id} className="bg-card p-6 rounded-2xl shadow-sm border border-border relative group">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 className="font-bold text-xl text-foreground mb-1">{notice.title}</h3>
+                                    <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                                        <ClockIcon className="w-3 h-3"/> {new Date(notice.timestamp).toLocaleDateString()}
+                                    </p>
+                                </div>
+                                <button onClick={() => onDeleteNotice(notice.id)} className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full opacity-0 group-hover:opacity-100 transition-all">
+                                    <TrashIcon className="w-4 h-4"/>
+                                </button>
+                            </div>
+                            {notice.mediaUrl && (
+                                <div className="mb-4 rounded-xl overflow-hidden border border-border bg-muted/30 max-h-[400px] flex justify-center">
+                                    <img src={notice.mediaUrl} alt={notice.title} className="max-w-full object-contain" />
+                                </div>
+                            )}
+                            <div className="text-foreground leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: notice.content }} />
+                        </div>
+                    ))}
+                    {notices.length === 0 && (
+                        <div className="text-center py-20 bg-card rounded-2xl border border-border border-dashed">
+                            <MegaphoneIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20"/>
+                            <p className="text-lg font-medium text-muted-foreground">No notices posted yet.</p>
+                        </div>
+                    )}
+                </div>
             </main>
             {isCreateModalOpen && <CreateNoticeModal onClose={() => setIsCreateModalOpen(false)} onCreateNotice={onCreateNotice} />}
             <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>

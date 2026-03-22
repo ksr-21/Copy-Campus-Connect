@@ -9,6 +9,11 @@ const storySchema = mongoose.Schema(
     },
     collegeId: String,
     textContent: String,
+    mediaUrl: String,
+    mediaType: {
+      type: String,
+      enum: ['image', 'video'],
+    },
     backgroundColor: String,
     timestamp: {
       type: Number,

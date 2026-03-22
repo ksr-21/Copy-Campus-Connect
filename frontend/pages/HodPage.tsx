@@ -192,10 +192,23 @@ const EditSubjectModal = ({ onClose, onUpdate, course, faculty }: any) => {
 const CreateNoticeModal = ({ onClose, onCreateNotice }: any) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
+    const [mediaDataUrl, setMediaDataUrl] = useState<string | undefined>();
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setMediaDataUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onCreateNotice({ title, content });
+        onCreateNotice({ title, content, mediaDataUrl, mediaType: mediaDataUrl ? 'image' : undefined });
         onClose();
     };
 
@@ -206,6 +219,13 @@ const CreateNoticeModal = ({ onClose, onCreateNotice }: any) => {
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <input className="w-full p-2 border border-border rounded bg-input text-foreground" placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} required />
                     <textarea className="w-full p-2 border border-border rounded bg-input text-foreground" placeholder="Content" value={content} onChange={e => setContent(e.target.value)} required rows={4} />
+
+                    <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm bg-muted px-3 py-1.5 rounded-lg font-bold hover:bg-muted/80">Add Image</button>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+                        {mediaDataUrl && <span className="text-xs text-emerald-500 font-bold">Image selected!</span>}
+                    </div>
+
                     <div className="flex justify-end gap-2">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-muted-foreground font-bold">Cancel</button>
                         <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-bold">Post</button>
@@ -934,6 +954,11 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                                             <TrashIcon className="w-4 h-4"/>
                                         </button>
                                         <h3 className="font-bold text-lg text-foreground mb-2">{notice.title}</h3>
+                                        {notice.mediaUrl && (
+                                            <div className="mb-3 rounded-lg overflow-hidden border border-border max-h-48">
+                                                <img src={notice.mediaUrl} alt={notice.title} className="w-full object-cover" />
+                                            </div>
+                                        )}
                                         <p className="text-sm text-muted-foreground whitespace-pre-wrap mb-3">{notice.content}</p>
                                         <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                                             <ClockIcon className="w-3 h-3"/> {new Date(notice.timestamp).toLocaleDateString()}
