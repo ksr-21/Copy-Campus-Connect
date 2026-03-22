@@ -7,9 +7,15 @@ const { errorHandler } = require('./middleware/errorMiddleware');
 const port = process.env.PORT || 5000;
 
 // Connect to Database
-connectDB();
+// (We moved the connection logic into a middleware below for serverless compatibility)
 
 const app = express();
+
+// Ensure DB is connected before processing any requests in Vercel serverless functions
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
 
 app.use(cors());
 app.use(express.json());
