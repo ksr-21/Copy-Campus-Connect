@@ -1,7 +1,25 @@
 const request = require('supertest');
+const mongoose = require('mongoose');
+const { MongoMemoryServer } = require('mongodb-memory-server');
+
+// Prevent server from starting and connecting to real DB
+process.env.NODE_ENV = 'test';
 const app = require('../server');
 
 describe('Authentication Error Handling (Mocked)', () => {
+  let mongod;
+
+  beforeAll(async () => {
+    mongod = await MongoMemoryServer.create();
+    const uri = mongod.getUri();
+    await mongoose.connect(uri);
+  });
+
+  afterAll(async () => {
+    await mongoose.connection.close();
+    await mongod.stop();
+  });
+
   it('should return "Not authorized, no token" when no authorization header is provided', async () => {
     const res = await request(app)
       .post('/api/groups')

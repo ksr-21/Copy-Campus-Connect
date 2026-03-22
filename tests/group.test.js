@@ -4,14 +4,18 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Group = require('../models/Group');
 const jwt = require('jsonwebtoken');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 
 describe('Group API', () => {
   let token;
   let userId;
+  let mongod;
 
   beforeAll(async () => {
     // Connect to a test database
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/campus-connect-test');
+    mongod = await MongoMemoryServer.create();
+    const uri = mongod.getUri();
+    await mongoose.connect(uri);
 
     // Create a test user
     const user = await User.create({
@@ -27,6 +31,7 @@ describe('Group API', () => {
     await User.deleteMany({});
     await Group.deleteMany({});
     await mongoose.connection.close();
+    await mongod.stop();
   });
 
   it('should create a new group', async () => {

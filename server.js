@@ -25,9 +25,11 @@ app.use(express.urlencoded({ extended: false }));
 app.get('/api/health', (req, res) => {
     const mongoose = require('mongoose');
     const isConnected = mongoose.connection.readyState === 1;
+    const isInMemory = mongoose.connection.client?.s?.url?.includes('mongodb-memory-server');
     res.json({
         status: 'ok',
         database: isConnected ? 'connected' : 'disconnected',
+        connectionType: isConnected ? (isInMemory ? 'local-in-memory-fallback' : 'primary-database') : 'none',
         timestamp: new Date().toISOString()
     });
 });
@@ -59,7 +61,7 @@ if (process.env.NODE_ENV === 'production') {
 app.use(errorHandler);
 
 // Only listen if not in a serverless environment or if explicitly told to
-if (process.env.NODE_ENV !== 'production' || process.env.START_SERVER === 'true') {
+if ((process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') || process.env.START_SERVER === 'true') {
   app.listen(port, () => console.log(`Server started on port ${port}`));
 }
 
