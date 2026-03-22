@@ -50,7 +50,7 @@ const createOrOpenConversation = async (req, res, next) => {
 // @access  Private
 const sendMessage = async (req, res, next) => {
   try {
-    const { text } = req.body;
+    const { text, mediaUrl, mediaType } = req.body;
     const conversation = await Conversation.findById(req.params.id);
 
     if (!conversation) {
@@ -67,6 +67,8 @@ const sendMessage = async (req, res, next) => {
       id: Date.now().toString(),
       senderId: req.user.id,
       text,
+      mediaUrl,
+      mediaType,
       timestamp: Date.now(),
     };
 

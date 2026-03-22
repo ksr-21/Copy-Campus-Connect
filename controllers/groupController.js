@@ -277,6 +277,8 @@ const sendGroupMessage = async (req, res, next) => {
     const newMessage = {
       senderId: req.user.id,
       text: req.body.text,
+      mediaUrl: req.body.mediaUrl,
+      mediaType: req.body.mediaType,
       timestamp: Date.now(),
     };
 

@@ -41,7 +41,7 @@ interface GroupDetailPageProps {
   onApproveJoinRequest: (groupId: string, userId: string) => void;
   onDeclineJoinRequest: (groupId: string, userId: string) => void;
   onDeleteGroup: (groupId: string) => void;
-  onSendGroupMessage: (groupId: string, text: string) => void;
+    onSendGroupMessage: (groupId: string, text: string, mediaDataUrl?: string, mediaType?: 'image' | 'video') => void;
   onRemoveGroupMember: (groupId: string, memberId: string) => void;
   onToggleFollowGroup: (groupId: string) => void;
     onUpdateGroup: (groupId: string, data: Partial<Group>) => void;
@@ -54,6 +54,8 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'about' | 'feed' | 'chat' | 'events' | 'members' | 'resources' | 'settings'>('about');
     const [chatInput, setChatInput] = useState('');
+    const [mediaDataUrl, setMediaDataUrl] = useState<string | undefined>();
+    const imageInputRef = useRef<HTMLInputElement>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     // State for Resources
@@ -97,11 +99,23 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     const canViewResources = isMember || visSettings.resources !== false;
     const canViewChat = isMember; // Chat always private to members
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setMediaDataUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        if (chatInput.trim()) {
-            onSendGroupMessage(group.id, chatInput.trim());
+        if (chatInput.trim() || mediaDataUrl) {
+            onSendGroupMessage(group.id, chatInput.trim(), mediaDataUrl, mediaDataUrl ? 'image' : undefined);
             setChatInput('');
+            setMediaDataUrl(undefined);
         }
     };
 
@@ -244,6 +258,11 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                                                     <span className="text-[10px] font-bold text-muted-foreground mb-1 ml-1">{sender?.name}</span>
                                                 )}
                                                 <div className={`px-4 py-2.5 text-sm shadow-sm break-words ${isMe ? 'bg-primary text-primary-foreground rounded-2xl rounded-tr-sm' : 'bg-white dark:bg-slate-800 text-foreground border border-border rounded-2xl rounded-tl-sm'}`}>
+                                                    {msg.mediaUrl && (
+                                                        <div className="mb-2 rounded-lg overflow-hidden max-w-full">
+                                                            <img src={msg.mediaUrl} alt="Message media" className="max-h-60 object-cover" />
+                                                        </div>
+                                                    )}
                                                     {msg.text}
                                                 </div>
                                                 <span className={`text-[9px] text-muted-foreground mt-1 px-1 ${isMe ? 'text-right' : 'text-left'}`}>
@@ -263,7 +282,17 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                                 )}
                         </div>
                         <div className="p-3 bg-card border-t border-border sticky bottom-0">
+                            {mediaDataUrl && (
+                                <div className="mb-3 relative inline-block px-4">
+                                    <img src={mediaDataUrl} alt="Preview" className="h-20 w-20 object-cover rounded-lg border border-border" />
+                                    <button onClick={() => setMediaDataUrl(undefined)} className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-1 shadow-sm"><CloseIcon className="w-3 h-3"/></button>
+                                </div>
+                            )}
                             <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                                <button type="button" onClick={() => imageInputRef.current?.click()} className="p-2 text-muted-foreground hover:text-primary transition-colors">
+                                    <span className="text-xl">🖼️</span>
+                                </button>
+                                <input type="file" ref={imageInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                                 <input
                                     className="flex-1 bg-muted/50 hover:bg-muted border-transparent focus:bg-background border focus:border-primary rounded-full px-5 py-3 text-sm focus:outline-none transition-all shadow-inner text-foreground placeholder:text-muted-foreground"
                                     placeholder="Message the group..."
@@ -272,7 +301,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                                 />
                                 <button
                                     type="submit"
-                                    disabled={!chatInput.trim()}
+                                    disabled={!chatInput.trim() && !mediaDataUrl}
                                     className="p-3 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 disabled:opacity-50 shadow-lg shadow-primary/20 transition-transform active:scale-95 flex-shrink-0"
                                 >
                                     <SendIcon className="w-5 h-5" />

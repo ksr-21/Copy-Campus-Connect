@@ -146,6 +146,8 @@ export type Story = {
   authorId: string;
   collegeId?: string;
   textContent: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video';
   backgroundColor: string;
   timestamp: number;
   viewedBy: string[];
@@ -196,6 +198,8 @@ export type Message = {
     id: string;
     senderId: string;
     text: string;
+    mediaUrl?: string;
+    mediaType?: 'image' | 'video';
     timestamp: number;
     deletedFor?: string[];
 }
@@ -282,18 +286,19 @@ export type Notice = {
   authorId: string;
   title: string;
   content: string; // HTML content from editor
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video';
   timestamp: number;
   collegeId?: string;
-  // FIX: Add optional properties for targeted notices to resolve type errors.
   targetDepartments?: string[];
   targetYears?: number[];
 };
 
 export type DepartmentChat = {
-    id: string; // Department name
+    id: string;
     collegeId?: string;
-    department?: string;
-    channel?: string;
+    department: string;
+    channel: string;
     messages: Message[];
 };
 

@@ -41,6 +41,7 @@ const App = () => {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
+  const [departmentChats, setDepartmentChats] = useState<DepartmentChat[]>([]);
 
   const checkHealth = async () => {
     try {
@@ -110,6 +111,13 @@ const App = () => {
             setColleges(data.map((c: any) => ({ ...c, id: c._id })));
         } catch (err) {
             console.error("Failed to fetch colleges", err);
+        }
+
+        try {
+            const data = await api.get(`/department-chats?collegeId=${collegeId}&department=${currentUser.department}`, token);
+            setDepartmentChats(data.map((c: any) => ({ ...c, id: c._id })));
+        } catch (err) {
+            console.error("Failed to fetch department chats", err);
         }
     };
 
@@ -240,9 +248,22 @@ const App = () => {
       try {
           // Normalize mediaDataUrls to mediaUrls for backend compatibility if present
           const { mediaDataUrls, ...rest } = postDetails;
+          const uploadedUrls: string[] = [];
+
+          if (mediaDataUrls && mediaDataUrls.length > 0 && storage) {
+              for (let i = 0; i < mediaDataUrls.length; i++) {
+                  const dataUrl = mediaDataUrls[i];
+                  const blob = await (await fetch(dataUrl)).blob();
+                  const fileRef = storage.ref().child(`posts/${currentUser.id}/${Date.now()}_${i}`);
+                  const snapshot = await fileRef.put(blob);
+                  const url = await snapshot.ref.getDownloadURL();
+                  uploadedUrls.push(url);
+              }
+          }
+
           const payload = {
               ...rest,
-              mediaUrls: mediaDataUrls || [],
+              mediaUrls: uploadedUrls,
               collegeId: currentUser.collegeId || ''
           };
 
@@ -345,8 +366,19 @@ const App = () => {
   const handleAddStory = async (storyDetails: any) => {
       if (!currentUser) return;
       try {
+          const { mediaDataUrl, ...rest } = storyDetails;
+          let mediaUrl = undefined;
+
+          if (mediaDataUrl && storage) {
+              const blob = await (await fetch(mediaDataUrl)).blob();
+              const fileRef = storage.ref().child(`stories/${currentUser.id}/${Date.now()}`);
+              const snapshot = await fileRef.put(blob);
+              mediaUrl = await snapshot.ref.getDownloadURL();
+          }
+
           const newStory = await api.post('/stories', {
-              ...storyDetails,
+              ...rest,
+              mediaUrl,
               collegeId: currentUser.collegeId
           }, currentUser.token);
           setStories(prev => [{ ...newStory, id: newStory._id }, ...prev]);
@@ -396,10 +428,18 @@ const App = () => {
       }
   };
 
-  const handleSendMessage = async (conversationId: string, text: string) => {
+  const handleSendMessage = async (conversationId: string, text: string, mediaDataUrl?: string, mediaType?: 'image' | 'video') => {
       if (!currentUser) return;
       try {
-          const newMessage = await api.post(`/conversations/${conversationId}/messages`, { text }, currentUser.token);
+          let mediaUrl = undefined;
+          if (mediaDataUrl && storage) {
+              const blob = await (await fetch(mediaDataUrl)).blob();
+              const fileRef = storage.ref().child(`chats/${conversationId}/${Date.now()}`);
+              const snapshot = await fileRef.put(blob);
+              mediaUrl = await snapshot.ref.getDownloadURL();
+          }
+
+          const newMessage = await api.post(`/conversations/${conversationId}/messages`, { text, mediaUrl, mediaType }, currentUser.token);
           setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, messages: [...c.messages, newMessage] } : c));
       } catch (err: any) {
           console.error("Failed to send message", err);
@@ -523,10 +563,18 @@ const App = () => {
       }
   };
 
-  const handleSendGroupMessage = async (groupId: string, text: string) => {
+  const handleSendGroupMessage = async (groupId: string, text: string, mediaDataUrl?: string, mediaType?: 'image' | 'video') => {
       if (!currentUser) return;
       try {
-          const messages = await api.post(`/groups/${groupId}/messages`, { text }, currentUser.token);
+          let mediaUrl = undefined;
+          if (mediaDataUrl && storage) {
+              const blob = await (await fetch(mediaDataUrl)).blob();
+              const fileRef = storage.ref().child(`groups/${groupId}/chats/${Date.now()}`);
+              const snapshot = await fileRef.put(blob);
+              mediaUrl = await snapshot.ref.getDownloadURL();
+          }
+
+          const messages = await api.post(`/groups/${groupId}/messages`, { text, mediaUrl, mediaType }, currentUser.token);
           setGroups(prev => prev.map(g => g.id === groupId ? { ...g, messages } : g));
       } catch (err: any) {
           console.error("Failed to send group message", err);
@@ -646,8 +694,18 @@ const App = () => {
   const handleCreateNotice = async (noticeData: any) => {
       if (!currentUser) return;
       try {
+          const { mediaDataUrl, ...rest } = noticeData;
+          let mediaUrl = undefined;
+          if (mediaDataUrl && storage) {
+              const blob = await (await fetch(mediaDataUrl)).blob();
+              const fileRef = storage.ref().child(`notices/${currentUser.id}/${Date.now()}`);
+              const snapshot = await fileRef.put(blob);
+              mediaUrl = await snapshot.ref.getDownloadURL();
+          }
+
           const newNotice = await api.post('/notices', {
-              ...noticeData,
+              ...rest,
+              mediaUrl,
               collegeId: currentUser.collegeId,
           }, currentUser.token);
           setNotices(prev => [{ ...newNotice, id: newNotice._id }, ...prev]);
@@ -923,13 +981,59 @@ const App = () => {
       }
   };
 
-  const handleSendCourseMessage = async (courseId: string, text: string) => {
+  const handleSendCourseMessage = async (courseId: string, text: string, mediaDataUrl?: string, mediaType?: 'image' | 'video') => {
       if (!currentUser) return;
       try {
-          const messages = await api.post(`/courses/${courseId}/messages`, { text }, currentUser.token);
+          let mediaUrl = undefined;
+          if (mediaDataUrl && storage) {
+              const blob = await (await fetch(mediaDataUrl)).blob();
+              const fileRef = storage.ref().child(`courses/${courseId}/chats/${Date.now()}`);
+              const snapshot = await fileRef.put(blob);
+              mediaUrl = await snapshot.ref.getDownloadURL();
+          }
+
+          const messages = await api.post(`/courses/${courseId}/messages`, { text, mediaUrl, mediaType }, currentUser.token);
           setCourses(prev => prev.map(c => c.id === courseId ? { ...c, messages } : c));
       } catch (err: any) {
           console.error("Failed to send course message", err);
+      }
+  };
+
+  const handleSendDepartmentMessage = async (department: string, channel: string, text: string, mediaDataUrl?: string, mediaType?: 'image' | 'video') => {
+      if (!currentUser) return;
+      try {
+          let mediaUrl = undefined;
+          if (mediaDataUrl && storage) {
+              const blob = await (await fetch(mediaDataUrl)).blob();
+              const fileRef = storage.ref().child(`department-chats/${currentUser.collegeId}/${department}/${Date.now()}`);
+              const snapshot = await fileRef.put(blob);
+              mediaUrl = await snapshot.ref.getDownloadURL();
+          }
+
+          const newMessage = await api.post('/department-chats', {
+              collegeId: currentUser.collegeId,
+              department,
+              channel,
+              text,
+              mediaUrl,
+              mediaType
+          }, currentUser.token);
+          setDepartmentChats(prev => {
+              const exists = prev.find(c => c.department === department && c.channel === channel);
+              if (exists) {
+                  return prev.map(c => c.department === department && c.channel === channel ? { ...c, messages: [...c.messages, newMessage] } : c);
+              } else {
+                  return [...prev, {
+                      id: `${department}-${channel}`,
+                      department,
+                      channel,
+                      collegeId: currentUser.collegeId,
+                      messages: [newMessage]
+                  }];
+              }
+          });
+      } catch (err: any) {
+          console.error("Failed to send department message", err);
       }
   };
 
@@ -1041,8 +1145,8 @@ const App = () => {
             allUsers={Object.values(users)}
             onCreateNotice={handleCreateNotice}
             onDeleteNotice={handleDeleteNotice}
-            departmentChats={[]}
-            onSendDepartmentMessage={()=>{}}
+            departmentChats={departmentChats}
+            onSendDepartmentMessage={handleSendDepartmentMessage}
             onCreateUser={handleCreateUser}
             onCreateUsersBatch={handleCreateUsersBatch}
             onApproveTeacherRequest={handleApproveTeacherRequest}
@@ -1233,8 +1337,8 @@ const App = () => {
             onCreateNotice={handleCreateNotice}
             onDeleteNotice={handleDeleteNotice}
             onRequestToJoinCourse={handleRequestToJoinCourse}
-            departmentChats={[]}
-            onSendDepartmentMessage={()=>{}}
+            departmentChats={departmentChats}
+            onSendDepartmentMessage={handleSendDepartmentMessage}
             onCreateUser={handleCreateUser}
             onApproveTeacherRequest={handleApproveTeacherRequest}
             onDeclineTeacherRequest={handleDeclineTeacherRequest}

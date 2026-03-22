@@ -31,7 +31,7 @@ interface CourseDetailPageProps {
   onManageCourseRequest: (courseId: string, studentId: string, action: 'approve' | 'reject') => void;
   onAddStudentsToCourse: (courseId: string, studentIds: string[]) => void;
   onRemoveStudentFromCourse: (courseId: string, studentId: string) => void;
-  onSendCourseMessage: (courseId: string, text: string) => void;
+  onSendCourseMessage: (courseId: string, text: string, mediaDataUrl?: string, mediaType?: 'image' | 'video') => void;
   onUpdateCoursePersonalNote: (courseId: string, note: string) => void;
   onSaveFeedback: (courseId: string, rating: number, comment: string) => void;
   onDeleteCourse: (courseId: string) => void;
@@ -458,6 +458,8 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
     const [attendanceViewMode, setAttendanceViewMode] = useState<'daily' | 'history'>('daily');
 
     const [chatInput, setChatInput] = useState('');
+    const [mediaDataUrl, setMediaDataUrl] = useState<string | undefined>();
+    const imageInputRef = useRef<HTMLInputElement>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
@@ -522,11 +524,23 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
     };
 
     // --- Chat Logic ---
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setMediaDataUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        if (chatInput.trim()) {
-            onSendCourseMessage(course.id, chatInput.trim());
+        if (chatInput.trim() || mediaDataUrl) {
+            onSendCourseMessage(course.id, chatInput.trim(), mediaDataUrl, mediaDataUrl ? 'image' : undefined);
             setChatInput('');
+            setMediaDataUrl(undefined);
         }
     };
 
@@ -916,6 +930,11 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
                                         <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]`}>
                                             <span className="text-[10px] text-muted-foreground mb-1 ml-1">{sender?.name}</span>
                                             <div className={`px-4 py-2 text-sm rounded-2xl shadow-sm break-words ${isMe ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-white dark:bg-slate-800 text-foreground border border-border rounded-tl-sm'}`}>
+                                                {msg.mediaUrl && (
+                                                    <div className="mb-2 rounded-lg overflow-hidden max-w-full">
+                                                        <img src={msg.mediaUrl} alt="Message media" className="max-h-60 object-cover" />
+                                                    </div>
+                                                )}
                                                 {msg.text}
                                             </div>
                                             <span className="text-[9px] text-muted-foreground mt-1">{new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
@@ -926,14 +945,24 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
                             <div ref={chatEndRef} />
                         </div>
                         <div className="p-3 bg-card border-t border-border">
+                            {mediaDataUrl && (
+                                <div className="mb-3 relative inline-block px-4">
+                                    <img src={mediaDataUrl} alt="Preview" className="h-20 w-20 object-cover rounded-lg border border-border" />
+                                    <button onClick={() => setMediaDataUrl(undefined)} className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-1 shadow-sm"><CloseIcon className="w-3 h-3"/></button>
+                                </div>
+                            )}
                             <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                                <button type="button" onClick={() => imageInputRef.current?.click()} className="p-2 text-muted-foreground hover:text-primary transition-colors">
+                                    <span className="text-xl">🖼️</span>
+                                </button>
+                                <input type="file" ref={imageInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                                 <input
                                     className="flex-1 bg-muted/50 border-transparent focus:border-primary border rounded-full px-4 py-2.5 text-sm focus:outline-none"
                                     placeholder="Message class..."
                                     value={chatInput}
                                     onChange={e => setChatInput(e.target.value)}
                                 />
-                                <button type="submit" disabled={!chatInput.trim()} className="p-2.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 disabled:opacity-50 shadow-md">
+                                <button type="submit" disabled={!chatInput.trim() && !mediaDataUrl} className="p-2.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 disabled:opacity-50 shadow-md">
                                     <SendIcon className="w-4 h-4" />
                                 </button>
                             </form>

@@ -205,17 +205,20 @@ const takeAttendance = async (req, res, next) => {
 // @access  Private
 const sendCourseMessage = async (req, res, next) => {
   try {
-    const { text } = req.body;
+    const { text, mediaUrl, mediaType } = req.body;
     const course = await Course.findById(req.params.id);
     if (!course) {
       res.status(404);
       throw new Error('Course not found');
     }
-    course.messages.push({
+    const newMessage = {
       senderId: req.user.id,
       text,
+      mediaUrl,
+      mediaType,
       timestamp: Date.now()
-    });
+    };
+    course.messages.push(newMessage);
     await course.save();
     res.status(200).json(course.messages);
   } catch (error) {

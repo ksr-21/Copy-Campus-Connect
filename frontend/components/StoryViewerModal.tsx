@@ -202,8 +202,12 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                 onTouchStart={() => setIsPaused(true)} onTouchEnd={() => setIsPaused(false)}
             >
                  {/* Background */}
-                <div className={`absolute inset-0 transition-colors duration-300 ${activeStory.backgroundColor}`}></div>
-                <div className="absolute inset-0 bg-black/10"></div>
+                <div className={`absolute inset-0 transition-colors duration-300 ${activeStory.backgroundColor}`}>
+                    {activeStory.mediaUrl && (
+                        <img src={activeStory.mediaUrl} alt="Story Content" className="w-full h-full object-cover" />
+                    )}
+                </div>
+                <div className="absolute inset-0 bg-black/20"></div>
 
                 {/* Navigation Overlay */}
                 <div className="absolute inset-0 flex z-20">

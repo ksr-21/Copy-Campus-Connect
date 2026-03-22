@@ -9,6 +9,8 @@ interface StoryCreatorModalProps {
   onClose: () => void;
   onAddStory: (storyDetails: {
     textContent: string;
+    mediaDataUrl?: string;
+    mediaType?: 'image' | 'video';
     backgroundColor: string;
     fontFamily: string;
     fontWeight: string;
@@ -48,6 +50,8 @@ const textBackgroundStyles = [
 
 const StoryCreatorModal: React.FC<StoryCreatorModalProps> = ({ currentUser, adminOfGroups, onClose, onAddStory, defaultGroup }) => {
     const [textContent, setTextContent] = useState('');
+    const [mediaDataUrl, setMediaDataUrl] = useState<string | undefined>();
+    const [mediaType, setMediaType] = useState<'image' | 'video' | undefined>();
     const [backgroundColor, setBackgroundColor] = useState(backgroundOptions[0]);
     const [fontFamilyIndex, setFontFamilyIndex] = useState(0);
     const [textBackgroundIndex, setTextBackgroundIndex] = useState(0);
@@ -63,10 +67,26 @@ const StoryCreatorModal: React.FC<StoryCreatorModalProps> = ({ currentUser, admi
     const activeFont = fontFamilies[fontFamilyIndex];
     const activeTextBackground = textBackgroundStyles[textBackgroundIndex];
 
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setMediaDataUrl(reader.result as string);
+                setMediaType('image'); // Assuming image for now
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSubmit = () => {
-        if (textContent.trim()) {
+        if (textContent.trim() || mediaDataUrl) {
             onAddStory({
                 textContent: textContent.trim(),
+                mediaDataUrl,
+                mediaType,
                 backgroundColor,
                 fontFamily: activeFont.class,
                 fontWeight: isBold ? 'font-bold' : 'font-normal',
@@ -130,19 +150,33 @@ const StoryCreatorModal: React.FC<StoryCreatorModalProps> = ({ currentUser, admi
                                 aria-label={`Select background ${bg}`}
                             />
                         ))}
+                        <div className="w-px h-5 bg-white/30 mx-1"></div>
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-white p-1.5 rounded-full hover:bg-white/20 transition-colors"
+                        >
+                            <span className="text-xl">🖼️</span>
+                        </button>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                     </div>
                 </div>
 
 
                 {/* Content */}
-                <div className="flex-1 flex items-center justify-center p-4">
-                    <div className={activeTextBackground.classes}>
+                <div className="flex-1 flex flex-col items-center justify-center p-4 relative">
+                    {mediaDataUrl && (
+                        <div className="absolute inset-0 z-0">
+                            <img src={mediaDataUrl} alt="Story Preview" className="w-full h-full object-cover" />
+                            <button onClick={() => setMediaDataUrl(undefined)} className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full z-10"><CloseIcon className="w-4 h-4"/></button>
+                        </div>
+                    )}
+                    <div className={`${activeTextBackground.classes} z-10 w-full`}>
                         <textarea
                             value={textContent}
                             onChange={(e) => setTextContent(e.target.value)}
                             placeholder="Start typing..."
                             maxLength={250}
-                            className={`w-full bg-transparent text-white text-center focus:outline-none resize-none placeholder:text-white/70 text-3xl ${activeFont.class} ${isBold ? 'font-bold' : 'font-normal'}`}
+                            className={`w-full bg-transparent text-white text-center focus:outline-none resize-none placeholder:text-white/70 text-3xl ${activeFont.class} ${isBold ? 'font-bold' : 'font-normal'} drop-shadow-lg`}
                         />
                     </div>
                 </div>

@@ -104,10 +104,23 @@ const CreateCourseModal = ({ onClose, onAddCourse, departmentOptions }: any) => 
 const CreateNoticeModal = ({ onClose, onCreateNotice, departmentOptions, availableYears }: any) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
+    const [mediaDataUrl, setMediaDataUrl] = useState<string | undefined>();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setMediaDataUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onCreateNotice({ title, content });
+        onCreateNotice({ title, content, mediaDataUrl, mediaType: mediaDataUrl ? 'image' : undefined });
         onClose();
     };
 
@@ -118,6 +131,13 @@ const CreateNoticeModal = ({ onClose, onCreateNotice, departmentOptions, availab
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <input className="w-full p-2 border rounded bg-input text-foreground" placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} required />
                     <textarea className="w-full p-2 border rounded bg-input text-foreground" placeholder="Content" value={content} onChange={e => setContent(e.target.value)} required rows={4} />
+
+                    <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm bg-muted px-3 py-1.5 rounded-lg font-bold hover:bg-muted/80">Add Image</button>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+                        {mediaDataUrl && <span className="text-xs text-emerald-500 font-bold">Image selected!</span>}
+                    </div>
+
                     <div className="flex justify-end gap-2">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-muted-foreground">Cancel</button>
                         <button type="submit" className="px-4 py-2 bg-primary text-white rounded">Post</button>
@@ -240,6 +260,11 @@ const StudentAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
                         {notices.map(n => (
                             <div key={n.id} className="bg-card border border-border p-4 rounded-xl shadow-sm">
                                 <h3 className="font-bold">{n.title}</h3>
+                                {n.mediaUrl && (
+                                    <div className="mt-2 mb-2 rounded-lg overflow-hidden border border-border max-h-48">
+                                        <img src={n.mediaUrl} alt={n.title} className="w-full object-cover" />
+                                    </div>
+                                )}
                                 <div className="text-sm text-muted-foreground mt-1" dangerouslySetInnerHTML={{__html: n.content}}></div>
                                 <p className="text-xs text-muted-foreground mt-2">{new Date(n.timestamp).toLocaleDateString()}</p>
                             </div>
