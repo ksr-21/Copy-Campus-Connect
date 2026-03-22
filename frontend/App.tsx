@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { auth, storage } from './firebase';
+import { storage } from './firebase';
 import { api } from './api';
 import type { User, Post, Group, Story, Course, Notice, Conversation, College, PersonalNote, UserTag, GroupCategory, GroupPrivacy, AttendanceRecord, Note, Assignment } from './types';
 
@@ -28,7 +28,6 @@ import ConfessionsPage from './pages/ConfessionsPage';
 
 const App = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [backendStatus, setBackendStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
   const [currentPath, setCurrentPath] = useState('#/');
@@ -127,26 +126,18 @@ const App = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Listen for storage events (for backend token synchronization)
+  // Listen for storage events (for backend session synchronization)
   useEffect(() => {
       const handleStorageChange = () => {
           const storedUserString = localStorage.getItem('user');
           if (storedUserString) {
               try {
                   const storedUser = JSON.parse(storedUserString);
-                  // Reactive merge: Merge the backend token from localStorage into the current state
-                  // to avoid overwriting Firestore profile data.
-                  setCurrentUser(prev => {
-                      if (!prev) return storedUser; // Fallback for manual login
-                      if (prev.id === storedUser.id) {
-                          return { ...prev, token: storedUser.token };
-                      }
-                      return prev;
-                  });
+                  setCurrentUser(storedUser);
               } catch (e) {
                   console.error("Failed to parse stored user", e);
               }
-          } else if (!auth?.currentUser) {
+          } else {
               setCurrentUser(null);
           }
       };
@@ -195,65 +186,33 @@ const App = () => {
       }
   }, [currentUser, currentPath]);
 
-  // 1. Auth State Listener (Firebase + Local Fallback)
+  // 1. Session Initialization (MongoDB Backend)
   useEffect(() => {
-    // Check for existing manual session first (e.g., from API fallback)
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-        try {
-            setCurrentUser(JSON.parse(storedUser));
-        } catch (e) {
-            console.error("Failed to parse stored user", e);
-        }
-    }
-
-    if (!auth) {
-        setLoading(false);
-        return;
-    }
-
-    const unsubscribe = auth.onAuthStateChanged(async (user: any) => {
-        if (user) {
-            setAuthUserId(user.uid);
-            // Check localStorage for backend session
-            const storedUserString = localStorage.getItem('user');
-            if (storedUserString) {
-                try {
-                    const storedUser = JSON.parse(storedUserString);
-                    if (storedUser.firebaseUid === user.uid && storedUser.token) {
-                        // We have a token, fetch fresh profile from MongoDB
-                        try {
-                            const userData = await api.get('/auth/me', storedUser.token);
-                            setCurrentUser({ ...userData, id: userData._id, token: storedUser.token });
-                        } catch (err) {
-                            console.error("Failed to fetch user from MongoDB", err);
-                            setCurrentUser(storedUser); // Fallback to stored
-                        }
-                    } else {
+    const initSession = async () => {
+        const storedUserString = localStorage.getItem('user');
+        if (storedUserString) {
+            try {
+                const storedUser = JSON.parse(storedUserString);
+                if (storedUser.token) {
+                    // Fetch fresh profile from MongoDB to ensure token and data are valid
+                    try {
+                        const userData = await api.get('/auth/me', storedUser.token);
+                        setCurrentUser({ ...userData, id: userData._id, token: storedUser.token });
+                    } catch (err) {
+                        console.error("Session verification failed", err);
+                        // If token is invalid/expired, clear session
+                        localStorage.removeItem('user');
                         setCurrentUser(null);
                     }
-                } catch (e) {
-                    console.error("Error parsing stored user", e);
                 }
-            }
-        } else {
-            // Only clear state if there's no manual session in localStorage
-            if (!localStorage.getItem('user')) {
-                setAuthUserId(null);
-                setCurrentUser(null);
-                // Clear other data
-                setPosts([]);
-
-                const publicPaths = ['#/', '#/login', '#/signup'];
-                if (!publicPaths.includes(window.location.hash)) {
-                    setCurrentPath('#/');
-                }
+            } catch (e) {
+                console.error("Failed to parse stored user", e);
             }
         }
         setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
+    initSession();
   }, []);
 
   // Fetch Posts from MongoDB

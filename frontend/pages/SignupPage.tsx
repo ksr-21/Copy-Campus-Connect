@@ -1,8 +1,9 @@
 
 import React, { useState, useRef } from 'react';
-import { auth, storage } from '../firebase';
+import { storage } from '../firebase';
 import type { User } from '../types';
-import { syncBackendToken } from '../utils/authUtils';
+import { backendRegister } from '../utils/authUtils';
+import { api } from '../api';
 import { MailIcon, LockIcon, CameraIcon, ArrowLeftIcon, CheckCircleIcon, BuildingIcon, UserIcon, ShieldIcon, XCircleIcon } from '../components/Icons';
 
 interface SignupPageProps {
@@ -48,11 +49,6 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
         e.preventDefault();
         setError('');
 
-        if (!auth) {
-            setError('Authentication services are unavailable.');
-            return;
-        }
-
         if (password.length < 6) {
             setError('Password must be at least 6 characters long.');
             return;
@@ -60,28 +56,33 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
 
         setIsLoading(true);
         try {
-            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-            const user = userCredential.user;
-            if (!user) throw new Error("Firebase user creation failed");
+            // 1. Register with MongoDB
+            const userData = await backendRegister({
+                email,
+                password,
+                name,
+                department,
+                tag: 'Student'
+            });
 
-            let avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random`;
+            // 2. Handle Avatar Upload if applicable
             if (avatarFile && storage) {
                 try {
-                    const storageRef = storage.ref().child(`avatars/${user.uid}`);
+                    const storageRef = storage.ref().child(`avatars/${userData._id || userData.id}`);
                     const snapshot = await storageRef.put(avatarFile);
-                    avatarUrl = await snapshot.ref.getDownloadURL();
+                    const avatarUrl = await snapshot.ref.getDownloadURL();
+
+                    // Update profile with final avatarUrl in MongoDB
+                    const updatedUser = await api.put('/auth/profile', { avatarUrl }, userData.token);
+
+                    // Update local storage session
+                    const finalUserData = { ...userData, ...updatedUser, id: updatedUser._id };
+                    localStorage.setItem('user', JSON.stringify(finalUserData));
+                    window.dispatchEvent(new Event('storage'));
                 } catch (err) {
                     console.error("Avatar upload failed, using default", err);
                 }
             }
-
-            // Synchronize with MongoDB Backend
-            await syncBackendToken(email, password, {
-                name,
-                department,
-                avatarUrl,
-                tag: 'Student'
-            }, user.uid);
         } catch (err: any) {
             setError(err.message || 'An error occurred during signup.');
         } finally {
@@ -92,11 +93,6 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
     const handleAdminSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-
-        if (!auth) {
-            setError('Authentication services are unavailable.');
-            return;
-        }
 
         if (adminSecret !== 'admin') {
             setError('Invalid Admin Secret Key.');
@@ -109,14 +105,13 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
 
         setIsLoading(true);
         try {
-            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-
-            // Synchronize with MongoDB Backend
-            await syncBackendToken(email, password, {
+            await backendRegister({
+                email,
+                password,
                 name,
                 tag: 'Super Admin',
                 department: 'Administration'
-            }, userCredential.user?.uid);
+            });
         } catch (err: any) {
              setError(err.message);
         } finally {
@@ -128,11 +123,6 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
         e.preventDefault();
         setError('');
 
-        if (!auth) {
-            setError('Authentication services are unavailable.');
-            return;
-        }
-
         if (password.length < 6) {
             setError('Password must be at least 6 characters long.');
             return;
@@ -140,15 +130,14 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
 
         setIsLoading(true);
         try {
-            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-
-            // Synchronize with MongoDB Backend
-            await syncBackendToken(email, password, {
+            await backendRegister({
+                email,
+                password,
                 name,
                 tag: 'Director',
                 department: 'Administration',
                 requestedCollegeName: collegeName
-            }, userCredential.user?.uid);
+            });
         } catch (err: any) {
             setError(err.message);
         } finally {

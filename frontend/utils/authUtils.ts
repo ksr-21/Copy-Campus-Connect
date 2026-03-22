@@ -1,56 +1,32 @@
-import { auth } from '../firebase';
 import { api } from '../api';
 
 /**
- * Synchronizes the current Firebase user with the MongoDB backend.
- * Attempts to login, and if the user doesn't exist, performs an auto-migration (registration).
+ * Logs in to the MongoDB backend directly.
  * Stores the resulting token in localStorage and dispatches a storage event.
  */
-export const syncBackendToken = async (email: string, password?: string, profileData?: any, firebaseUid?: string): Promise<void> => {
-    if (!email || !password) return;
+export const backendLogin = async (email: string, password?: string): Promise<any> => {
+    if (!email || !password) throw new Error("Email and password are required");
+    const data = await api.post('/auth/login', { email, password });
+    const userData = { ...data, id: data._id };
+    localStorage.setItem('user', JSON.stringify(userData));
+    window.dispatchEvent(new Event('storage'));
+    return userData;
+};
 
-    try {
-        // 1. Attempt Backend Login
-        const data = await api.post('/auth/login', { email, password });
-        const userData = { ...data, id: data._id, firebaseUid: data.firebaseUid || firebaseUid };
-        localStorage.setItem('user', JSON.stringify(userData));
-
-        // If login successful but we have profile data, update it
-        if (profileData) {
-            const updatedUser = await api.put('/auth/profile', profileData, userData.token);
-            localStorage.setItem('user', JSON.stringify({ ...userData, ...updatedUser, id: updatedUser._id, firebaseUid: updatedUser.firebaseUid || userData.firebaseUid }));
-        }
-    } catch (loginErr: any) {
-        // Fallback: Attempt registration if login fails
-        try {
-            const registerData = await api.post('/auth/register', {
-                email,
-                password,
-                name: email.split('@')[0], // Fallback name
-                ...profileData,
-                firebaseUid
-            });
-            const userData = { ...registerData, id: registerData._id, firebaseUid: registerData.firebaseUid || firebaseUid };
-            localStorage.setItem('user', JSON.stringify(userData));
-        } catch (regErr) {
-            console.error("Auto-migration/Registration failed", regErr);
-        }
-    } finally {
-        // Notify App.tsx of the new token in localStorage
-        window.dispatchEvent(new Event('storage'));
-    }
+/**
+ * Registers a new user in the MongoDB backend directly.
+ * Stores the resulting token in localStorage and dispatches a storage event.
+ */
+export const backendRegister = async (registrationData: any): Promise<any> => {
+    const data = await api.post('/auth/register', registrationData);
+    const userData = { ...data, id: data._id };
+    localStorage.setItem('user', JSON.stringify(userData));
+    window.dispatchEvent(new Event('storage'));
+    return userData;
 };
 
 export const logout = async (onNavigate: (path: string) => void) => {
-    try {
-        if (auth) {
-            await auth.signOut();
-        }
-    } catch (error) {
-        console.error("Firebase signOut failed", error);
-    } finally {
-        localStorage.removeItem('user');
-        window.dispatchEvent(new Event('storage'));
-        onNavigate('#/');
-    }
+    localStorage.removeItem('user');
+    window.dispatchEvent(new Event('storage'));
+    onNavigate('#/');
 };
