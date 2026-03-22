@@ -55,6 +55,7 @@ const registerUser = async (req, res, next) => {
         tag: user.tag,
         department: user.department,
         collegeId: user.collegeId,
+        firebaseUid: user.firebaseUid,
         token: generateToken(user._id),
       });
     } else {
@@ -163,6 +164,7 @@ const updateProfile = async (req, res, next) => {
         personalNotes: updatedUser.personalNotes,
         isFrozen: updatedUser.isFrozen,
         requestedCollegeName: updatedUser.requestedCollegeName,
+        firebaseUid: updatedUser.firebaseUid,
         token: generateToken(updatedUser._id),
       });
     } else {
@@ -188,6 +190,7 @@ const loginUser = async (req, res, next) => {
         tag: user.tag,
         department: user.department,
         collegeId: user.collegeId,
+        firebaseUid: user.firebaseUid,
         token: generateToken(user._id),
       });
     } else {
