@@ -16,6 +16,17 @@ const courseSchema = mongoose.Schema(
     },
     collegeId: String,
     description: String,
+    slots: [
+      {
+        day: {
+          type: String,
+          enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        },
+        startTime: String,
+        endTime: String,
+        room: String,
+      },
+    ],
     notes: [
       {
         id: String,

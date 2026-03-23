@@ -1269,6 +1269,7 @@ const App = () => {
             onEditCollegeDepartment={onEditCollegeDepartment}
             onDeleteCollegeDepartment={onDeleteCollegeDepartment}
             onUpdateCourseFaculty={handleUpdateCourseFaculty}
+            onCreateUsersBatch={handleCreateUsersBatch}
             postCardProps={{
                 onReaction: handleReaction,
                 onAddComment: handleAddComment,

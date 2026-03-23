@@ -14,8 +14,10 @@ import {
     SettingsIcon, PlusIcon, SearchIcon, FilterIcon, TrashIcon,
     CheckCircleIcon, AlertTriangleIcon, ClockIcon, ArrowRightIcon,
     MenuIcon, CloseIcon, ChevronRightIcon, ChevronDownIcon, FileTextIcon,
-    UserPlusIcon, EditIcon, LogOutIcon
+    UserPlusIcon, EditIcon, LogOutIcon, CalendarIcon, ClipboardCheckIcon,
+    BuildingIcon, XCircleIcon
 } from '../components/Icons';
+import type { TimetableSlot } from '../types';
 
 interface HodPageProps {
   currentUser: User;
@@ -714,8 +716,352 @@ const AcademicsView = ({
     );
 };
 
+const AddSlotModal = ({ onClose, onAddSlot, courses }: { onClose: () => void, onAddSlot: (courseId: string, slot: TimetableSlot) => void, courses: Course[] }) => {
+    const [courseId, setCourseId] = useState(courses[0]?.id || '');
+    const [day, setDay] = useState<TimetableSlot['day']>('Monday');
+    const [startTime, setStartTime] = useState('09:00');
+    const [endTime, setEndTime] = useState('10:00');
+    const [room, setRoom] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(courseId && day && startTime && endTime && room) {
+            onAddSlot(courseId, { day, startTime, endTime, room });
+            onClose();
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
+            <div className="bg-card rounded-xl shadow-xl w-full max-w-md p-6 border border-border">
+                <h2 className="text-xl font-bold mb-4">Add Timetable Slot</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="text-xs font-bold uppercase text-muted-foreground">Subject</label>
+                        <select value={courseId} onChange={e => setCourseId(e.target.value)} className="w-full bg-input border border-border rounded-lg px-3 py-2 mt-1">
+                            {courses.map(c => <option key={c.id} value={c.id}>{c.subject}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold uppercase text-muted-foreground">Day</label>
+                        <select value={day} onChange={e => setDay(e.target.value as any)} className="w-full bg-input border border-border rounded-lg px-3 py-2 mt-1">
+                            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold uppercase text-muted-foreground">Start Time</label>
+                            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-input border border-border rounded-lg px-3 py-2 mt-1" required/>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold uppercase text-muted-foreground">End Time</label>
+                            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full bg-input border border-border rounded-lg px-3 py-2 mt-1" required/>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold uppercase text-muted-foreground">Room / Lab</label>
+                        <input type="text" value={room} onChange={e => setRoom(e.target.value)} className="w-full bg-input border border-border rounded-lg px-3 py-2 mt-1" placeholder="e.g. Room 301" required/>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-bold text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
+                        <button type="submit" className="px-4 py-2 text-sm font-bold bg-primary text-primary-foreground rounded-lg">Add Slot</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const AddTimetableCsvModal = ({ isOpen, onClose, courses, onUpdateCourse, selectedClass }: any) => {
+    const [parsedData, setParsedData] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    if (!isOpen) return null;
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target?.result as string;
+            const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+            const header = lines.shift()?.toLowerCase().split(',');
+
+            if (!header?.includes('subject') || !header?.includes('day') || !header?.includes('start')) {
+                alert("CSV must have 'Subject', 'Day', 'Start', 'End', and 'Room' columns.");
+                return;
+            }
+
+            const subIdx = header.indexOf('subject');
+            const dayIdx = header.indexOf('day');
+            const startIdx = header.indexOf('start');
+            const endIdx = header.indexOf('end');
+            const roomIdx = header.indexOf('room');
+
+            const data = lines.map(line => {
+                const vals = line.split(',');
+                return {
+                    subject: vals[subIdx]?.trim(),
+                    day: vals[dayIdx]?.trim(),
+                    startTime: vals[startIdx]?.trim(),
+                    endTime: vals[endIdx]?.trim(),
+                    room: vals[roomIdx]?.trim()
+                };
+            });
+            setParsedData(data);
+        };
+        reader.readAsText(file);
+    };
+
+    const handleSubmit = async () => {
+        setIsLoading(true);
+        try {
+            for (const row of parsedData) {
+                const course = courses.find((c: any) => c.subject.toLowerCase() === row.subject.toLowerCase());
+                if (course) {
+                    const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                    const day = validDays.find(d => d.toLowerCase() === row.day.toLowerCase());
+                    if (day) {
+                        const updatedSlots = [...(course.slots || []), {
+                            day,
+                            startTime: row.startTime,
+                            endTime: row.endTime,
+                            room: row.room
+                        }];
+                        await onUpdateCourse(course.id, { slots: updatedSlots });
+                    }
+                }
+            }
+            onClose();
+        } catch (err) {
+            alert("Error uploading timetable");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4">
+            <div className="bg-card rounded-xl shadow-xl w-full max-w-2xl p-6 border border-border">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold">Bulk Upload Timetable (Class {selectedClass.year}-{selectedClass.division})</h2>
+                    <button onClick={onClose}><CloseIcon className="w-5 h-5"/></button>
+                </div>
+
+                <input type="file" accept=".csv" onChange={handleFileChange} className="mb-4 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"/>
+
+                {parsedData.length > 0 && (
+                    <div className="max-h-60 overflow-y-auto border border-border rounded-lg mb-4">
+                        <table className="w-full text-xs text-left">
+                            <thead className="bg-muted sticky top-0">
+                                <tr>
+                                    <th className="p-2">Subject</th>
+                                    <th className="p-2">Day</th>
+                                    <th className="p-2">Time</th>
+                                    <th className="p-2">Room</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {parsedData.map((row, i) => (
+                                    <tr key={i}>
+                                        <td className="p-2">{row.subject}</td>
+                                        <td className="p-2">{row.day}</td>
+                                        <td className="p-2">{row.startTime} - {row.endTime}</td>
+                                        <td className="p-2">{row.room}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                <div className="flex justify-end gap-2 mt-4">
+                    <button onClick={onClose} className="px-4 py-2 font-bold text-muted-foreground">Cancel</button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isLoading || parsedData.length === 0}
+                        className="px-6 py-2 bg-primary text-primary-foreground font-bold rounded-lg disabled:opacity-50"
+                    >
+                        {isLoading ? 'Uploading...' : `Upload ${parsedData.length} Slots`}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const TimetableView = ({ courses, activeClasses, onUpdateCourse }: { courses: Course[], activeClasses: {year: number, division: string}[], onUpdateCourse: (id: string, data: any) => void }) => {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const [selectedClass, setSelectedClass] = useState(activeClasses[0] || null);
+    const [isAddSlotModalOpen, setIsAddSlotModalOpen] = useState(false);
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+
+    const filteredCourses = courses.filter(c =>
+        selectedClass && c.year === selectedClass.year && c.division === selectedClass.division
+    );
+
+    const handleAddSlot = (courseId: string, slot: TimetableSlot) => {
+        const course = courses.find(c => c.id === courseId);
+        if (course) {
+            const updatedSlots = [...(course.slots || []), slot];
+            onUpdateCourse(courseId, { slots: updatedSlots });
+        }
+    };
+
+    const handleDeleteSlot = (courseId: string, slotIndex: number) => {
+        const course = courses.find(c => c.id === courseId);
+        if (course && course.slots) {
+            const updatedSlots = course.slots.filter((_, i) => i !== slotIndex);
+            onUpdateCourse(courseId, { slots: updatedSlots });
+        }
+    };
+
+    const timetableData: { [key: string]: (TimetableSlot & { subject: string, courseId: string, slotIndex: number })[] } = {};
+    days.forEach(d => timetableData[d] = []);
+
+    filteredCourses.forEach(course => {
+        course.slots?.forEach((slot, index) => {
+            if (timetableData[slot.day]) {
+                timetableData[slot.day].push({ ...slot, subject: course.subject, courseId: course.id, slotIndex: index });
+            }
+        });
+    });
+
+    Object.keys(timetableData).forEach(day => {
+        timetableData[day].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    });
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-4">
+                    <h2 className="text-2xl font-bold text-foreground">Class Timetable</h2>
+                    <select
+                        value={selectedClass ? `${selectedClass.year}-${selectedClass.division}` : ''}
+                        onChange={(e) => {
+                            const [year, div] = e.target.value.split('-');
+                            setSelectedClass({ year: parseInt(year), division: div });
+                        }}
+                        className="bg-card border border-border rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                        {activeClasses.map((cls, idx) => (
+                            <option key={idx} value={`${cls.year}-${cls.division}`}>Class {cls.year}-{cls.division}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setIsBulkModalOpen(true)}
+                        className="bg-card border border-border px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-muted"
+                    >
+                        <FileTextIcon className="w-4 h-4"/> Bulk Upload
+                    </button>
+                    <button
+                        onClick={() => setIsAddSlotModalOpen(true)}
+                        className="bg-primary text-primary-foreground px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md hover:bg-primary/90"
+                    >
+                        <PlusIcon className="w-4 h-4"/> Add Slot
+                    </button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {days.map(day => (
+                    <div key={day} className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+                        <div className="bg-muted/30 px-4 py-2 border-b border-border flex justify-between items-center">
+                            <h3 className="font-bold text-foreground">{day}</h3>
+                            <span className="text-xs font-bold text-muted-foreground">{timetableData[day].length} Sessions</span>
+                        </div>
+                        <div className="p-4 space-y-3">
+                            {timetableData[day].map((slot, idx) => (
+                                <div key={idx} className="flex items-center gap-4 p-3 bg-muted/10 rounded-lg border border-border group relative">
+                                    <div className="flex flex-col items-center justify-center min-w-[80px] py-1 bg-primary/5 rounded-md border border-primary/10">
+                                        <span className="text-xs font-bold text-primary">{slot.startTime}</span>
+                                        <span className="text-[10px] text-muted-foreground">{slot.endTime}</span>
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-sm text-foreground">{slot.subject}</p>
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <BuildingIcon className="w-3 h-3"/> Room: {slot.room}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleDeleteSlot(slot.courseId, slot.slotIndex)}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <TrashIcon className="w-4 h-4"/>
+                                    </button>
+                                </div>
+                            ))}
+                            {timetableData[day].length === 0 && (
+                                <p className="text-center py-4 text-xs text-muted-foreground italic">No classes scheduled.</p>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {isAddSlotModalOpen && (
+                <AddSlotModal
+                    onClose={() => setIsAddSlotModalOpen(false)}
+                    onAddSlot={handleAddSlot}
+                    courses={filteredCourses}
+                />
+            )}
+            {isBulkModalOpen && (
+                <AddTimetableCsvModal
+                    isOpen={isBulkModalOpen}
+                    onClose={() => setIsBulkModalOpen(false)}
+                    courses={filteredCourses}
+                    onUpdateCourse={onUpdateCourse}
+                    selectedClass={selectedClass}
+                />
+            )}
+        </div>
+    );
+};
+
+const ApprovalsView = ({ pendingUsers, onApprove, onDecline }: any) => (
+    <div className="space-y-6 animate-fade-in">
+        <h2 className="text-2xl font-bold text-foreground">Pending Faculty Registrations</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingUsers.map((user: User) => (
+                <div key={user.id} className="bg-card p-4 rounded-xl border border-border shadow-sm">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Avatar src={user.avatarUrl} name={user.name} size="md"/>
+                        <div>
+                            <h4 className="font-bold text-foreground">{user.name}</h4>
+                            <p className="text-xs text-muted-foreground">{user.tag} • {user.email}</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                        <button
+                            onClick={() => onApprove(user.id)}
+                            className="flex-1 bg-emerald-500 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors flex items-center justify-center gap-1"
+                        >
+                            <CheckCircleIcon className="w-3 h-3"/> Approve
+                        </button>
+                        <button
+                            onClick={() => onDecline(user.id)}
+                            className="flex-1 bg-red-500 text-white py-2 rounded-lg text-xs font-bold hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
+                        >
+                            <XCircleIcon className="w-3 h-3"/> Reject
+                        </button>
+                    </div>
+                </div>
+            ))}
+            {pendingUsers.length === 0 && (
+                <div className="col-span-full text-center py-12 text-muted-foreground bg-card rounded-xl border border-border">
+                    <CheckCircleIcon className="w-12 h-12 mx-auto mb-2 text-emerald-500 opacity-50"/>
+                    <p>No pending teacher requests.</p>
+                </div>
+            )}
+        </div>
+    </div>
+);
+
 const HodPage: React.FC<HodPageProps> = (props) => {
-    const { currentUser, onNavigate, currentPath, isViewingAsDirector, courses, onCreateCourse, notices, users, allUsers, onCreateNotice, onDeleteNotice, onCreateUser, onCreateUsersBatch, onUpdateCourseFaculty, colleges, onUpdateCollegeClasses, onDeleteCourse, onUpdateCourse } = props;
+    const { currentUser, onNavigate, currentPath, isViewingAsDirector, courses, onCreateCourse, notices, users, allUsers, onCreateNotice, onDeleteNotice, onCreateUser, onCreateUsersBatch, onUpdateCourseFaculty, colleges, onUpdateCollegeClasses, onDeleteCourse, onUpdateCourse, onApproveTeacherRequest, onDeclineTeacherRequest } = props;
 
     const [activeSection, setActiveSection] = useState<'dashboard' | 'academics' | 'faculty' | 'students' | 'timetable' | 'notices' | 'approvals' | 'settings'>('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -901,9 +1247,11 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                         <div className="space-y-2">
                             <SidebarItem id="dashboard" label="Dashboard" icon={ChartPieIcon} onClick={() => {setActiveSection('dashboard'); setMobileMenuOpen(false);}} active={activeSection === 'dashboard'} />
                             <SidebarItem id="academics" label="Academics & Classes" icon={BookOpenIcon} onClick={() => {setActiveSection('academics'); setMobileMenuOpen(false);}} active={activeSection === 'academics'} />
+                            <SidebarItem id="timetable" label="Class Timetable" icon={CalendarIcon} onClick={() => {setActiveSection('timetable'); setMobileMenuOpen(false);}} active={activeSection === 'timetable'} />
                             <div className="pt-4 pb-2 border-t border-slate-100 dark:border-slate-800" />
                             <SidebarItem id="faculty" label="Faculty Register" icon={UserPlusIcon} onClick={() => {setActiveSection('faculty'); setMobileMenuOpen(false);}} active={activeSection === 'faculty'} />
                             <SidebarItem id="students" label="Student Database" icon={UsersIcon} onClick={() => {setActiveSection('students'); setMobileMenuOpen(false);}} active={activeSection === 'students'} />
+                            <SidebarItem id="approvals" label="Verification Tasks" icon={ClipboardCheckIcon} onClick={() => {setActiveSection('approvals'); setMobileMenuOpen(false);}} active={activeSection === 'approvals'} />
                             <div className="pt-4 pb-2 border-t border-slate-100 dark:border-slate-800" />
                             <SidebarItem id="notices" label="Department Notices" icon={MegaphoneIcon} onClick={() => {setActiveSection('notices'); setMobileMenuOpen(false);}} active={activeSection === 'notices'} />
                             <SidebarItem id="settings" label="Dept Settings" icon={SettingsIcon} onClick={() => {setActiveSection('settings'); setMobileMenuOpen(false);}} active={activeSection === 'settings'} />
@@ -946,6 +1294,14 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                         />
                     )}
 
+                    {activeSection === 'timetable' && (
+                        <TimetableView
+                            courses={deptCourses}
+                            activeClasses={activeClasses}
+                            onUpdateCourse={onUpdateCourse}
+                        />
+                    )}
+
                     {activeSection === 'faculty' && (
                         <UserDirectory
                             type="Teacher"
@@ -954,6 +1310,14 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                             onCreateUsersBatch={onCreateUsersBatch}
                             department={myDept}
                             activeCourses={deptCourses}
+                        />
+                    )}
+
+                    {activeSection === 'approvals' && (
+                        <ApprovalsView
+                            pendingUsers={allUsers.filter(u => u.collegeId === college.id && u.department === myDept && !u.isApproved && u.isRegistered && u.tag === 'Teacher')}
+                            onApprove={onApproveTeacherRequest}
+                            onDecline={onDeclineTeacherRequest}
                         />
                     )}
 

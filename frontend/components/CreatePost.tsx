@@ -146,7 +146,6 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
                 link: eventDetails.link.trim(),
                 category: eventDetails.category,
                 tags: eventDetails.tags.split(',').map(t => t.trim()).filter(t => t),
-                organizer: user.department // Default to user dept
             };
         } catch (error) {
             console.error("Date parsing error:", error);
