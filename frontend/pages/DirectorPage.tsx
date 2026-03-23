@@ -391,7 +391,7 @@ const ReportsView: React.FC<{ courses: Course[]; departments: string[] }> = ({ c
 
 const DirectorPage: React.FC<DirectorPageProps> = (props) => {
     const { currentUser, allUsers, onNavigate, currentPath, colleges, onUpdateCollegeDepartments, onCreateUser, onApproveHodRequest, onDeclineHodRequest, onApproveTeacherRequest, onDeclineTeacherRequest, onToggleFreezeUser, onDeleteUser, allCourses } = props;
-    const [activeSection, setActiveSection] = useState<'dashboard' | 'departments' | 'faculty' | 'students' | 'approvals' | 'reports' | 'settings'>('dashboard');
+    const [activeSection, setActiveSection] = useState<'dashboard' | 'departments' | 'faculty' | 'students' | 'approvals' | 'reports' | 'settings' | 'portfolio' | 'schedules' | 'intelligence' | 'broadcast'>('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [approvingId, setApprovingId] = useState<string | null>(null);
 
@@ -536,15 +536,15 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                             <SidebarItem id="dashboard" label="Command Center" icon={LayoutGridIcon} onClick={() => {setActiveSection('dashboard'); setMobileMenuOpen(false);}} active={activeSection === 'dashboard'} />
                             <SidebarItem id="departments" label="Departments & Heads" icon={ListIcon} onClick={() => {setActiveSection('departments'); setMobileMenuOpen(false);}} active={activeSection === 'departments'} />
                             <SidebarItem id="reports" label="Attendance Reports" icon={ChartPieIcon} onClick={() => {setActiveSection('reports'); setMobileMenuOpen(false);}} active={activeSection === 'reports'} />
-                            <SidebarItem id="portfolio" label="Academic Portfolio" icon={FileTextIcon} onClick={() => {}} active={false} />
-                            <SidebarItem id="schedules" label="Master Schedules" icon={CalendarIcon} onClick={() => {}} active={false} />
-                            <SidebarItem id="intelligence" label="Usage Intelligence" icon={ChartBarIcon} onClick={() => {}} active={false} />
-                            <SidebarItem id="broadcast" label="Broadcast Center" icon={RadioIcon} onClick={() => {}} active={false} />
+                            <SidebarItem id="portfolio" label="Academic Portfolio" icon={FileTextIcon} onClick={() => {setActiveSection('portfolio'); setMobileMenuOpen(false);}} active={activeSection === 'portfolio'} />
+                            <SidebarItem id="schedules" label="Master Schedules" icon={CalendarIcon} onClick={() => {setActiveSection('schedules'); setMobileMenuOpen(false);}} active={activeSection === 'schedules'} />
+                            <SidebarItem id="intelligence" label="Usage Intelligence" icon={ChartBarIcon} onClick={() => {setActiveSection('intelligence'); setMobileMenuOpen(false);}} active={activeSection === 'intelligence'} />
+                            <SidebarItem id="broadcast" label="Broadcast Center" icon={RadioIcon} onClick={() => {setActiveSection('broadcast'); setMobileMenuOpen(false);}} active={activeSection === 'broadcast'} />
                             <div className="pt-4 pb-2 border-t border-slate-100 dark:border-slate-800" />
                             <SidebarItem id="faculty_reg" label="Faculty Register" icon={UserPlusIcon} onClick={() => {setActiveSection('faculty'); setMobileMenuOpen(false);}} active={activeSection === 'faculty'} />
                             <SidebarItem id="student_db" label="Student Database" icon={DatabaseIcon} onClick={() => {setActiveSection('students'); setMobileMenuOpen(false);}} active={activeSection === 'students'} />
                             <SidebarItem id="tasks" label="Verification Tasks" icon={ClipboardCheckIcon} onClick={() => {setActiveSection('approvals'); setMobileMenuOpen(false);}} active={activeSection === 'approvals'} />
-                            <SidebarItem id="settings" label="College Settings" icon={SettingsIcon} onClick={() => {}} active={false} />
+                            <SidebarItem id="settings" label="College Settings" icon={SettingsIcon} onClick={() => {setActiveSection('settings'); setMobileMenuOpen(false);}} active={activeSection === 'settings'} />
                         </div>
                     </div>
                 </aside>
@@ -656,6 +656,66 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                         <ReportsView courses={myCollegeCourses} departments={college.departments || []} />
                     )}
 
+                    {activeSection === 'portfolio' && (
+                        <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
+                            <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
+                                <FileTextIcon className="w-12 h-12 text-primary" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-foreground">Academic Portfolio</h2>
+                            <p className="text-muted-foreground mt-2 max-w-md">
+                                Detailed institutional performance metrics, accreditation tracking, and outcome-based education reports will appear here.
+                            </p>
+                        </div>
+                    )}
+
+                    {activeSection === 'schedules' && (
+                        <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
+                            <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
+                                <CalendarIcon className="w-12 h-12 text-primary" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-foreground">Master Schedules</h2>
+                            <p className="text-muted-foreground mt-2 max-w-md">
+                                Centralized timetable management for all departments, exam schedules, and holiday calendars.
+                            </p>
+                        </div>
+                    )}
+
+                    {activeSection === 'intelligence' && (
+                        <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
+                            <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
+                                <ChartBarIcon className="w-12 h-12 text-primary" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-foreground">Usage Intelligence</h2>
+                            <p className="text-muted-foreground mt-2 max-w-md">
+                                Analytics on platform engagement, student participation, and content reach across the institution.
+                            </p>
+                        </div>
+                    )}
+
+                    {activeSection === 'broadcast' && (
+                        <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
+                            <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
+                                <RadioIcon className="w-12 h-12 text-primary" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-foreground">Broadcast Center</h2>
+                            <p className="text-muted-foreground mt-2 max-w-md">
+                                Send urgent push notifications and official announcements to the entire campus or specific groups.
+                            </p>
+                        </div>
+                    )}
+
+                    {activeSection === 'settings' && (
+                        <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
+                            <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
+                                <SettingsIcon className="w-12 h-12 text-primary" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-foreground">College Settings</h2>
+                            <p className="text-muted-foreground mt-2 max-w-md">
+                                Configure college profile, branding, roles, and platform permissions.
+                            </p>
+                        </div>
+                    )}
+
                     {activeSection === 'departments' && (
                         <div className="space-y-12 animate-fade-in">
                             <div className="space-y-6">
@@ -678,8 +738,26 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                                     <div className="space-y-2">
                                         {college.departments?.map(dept => (
                                             <div key={dept} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg border border-border">
-                                                <span className="font-medium text-foreground">{dept}</span>
-                                                <button onClick={() => handleDeleteDepartment(dept)} className="p-2 text-destructive hover:bg-destructive/10 rounded-full transition-colors"><TrashIcon className="w-4 h-4"/></button>
+                                                <div className="flex items-center gap-3">
+                                                    <BuildingIcon className="w-5 h-5 text-muted-foreground" />
+                                                    <span className="font-medium text-foreground">{dept}</span>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            const newName = prompt('Enter new department name:', dept);
+                                                            if (newName && newName !== dept) props.onEditCollegeDepartment(college.id, dept, newName);
+                                                        }}
+                                                        className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                                                    >
+                                                        <SettingsIcon className="w-4 h-4"/>
+                                                    </button>
+                                                    <button onClick={() => {
+                                                        if (window.confirm(`Delete department "${dept}"?`)) props.onDeleteCollegeDepartment(college.id, dept);
+                                                    }} className="p-2 text-destructive hover:bg-destructive/10 rounded-full transition-colors">
+                                                        <TrashIcon className="w-4 h-4"/>
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

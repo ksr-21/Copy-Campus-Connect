@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { storage } from './firebase';
 import { api } from './api';
-import type { User, Post, Group, Story, Course, Notice, Conversation, College, PersonalNote, UserTag, GroupCategory, GroupPrivacy, AttendanceRecord, Note, Assignment } from './types';
+import type { User, Post, Group, Story, Course, Notice, Conversation, College, PersonalNote, UserTag, GroupCategory, GroupPrivacy, AttendanceRecord, Note, Assignment, DepartmentChat } from './types';
 
 import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/LoginPage';
@@ -918,9 +918,62 @@ const App = () => {
   const onUpdateCollegeDepartments = async (collegeId: string, departments: string[]) => {
       if (!currentUser) return;
       try {
-          await api.put(`/colleges/${collegeId}`, { departments }, currentUser.token);
+          const updatedCollege = await api.put(`/colleges/${collegeId}`, { departments }, currentUser.token);
+          setColleges(prev => prev.map(c => c.id === collegeId ? { ...updatedCollege, id: updatedCollege._id } : c));
       } catch (err: any) {
           console.error("Failed to update college departments", err);
+      }
+  };
+
+  const onEditCollegeDepartment = async (collegeId: string, oldName: string, newName: string) => {
+      if (!currentUser) return;
+      const college = colleges.find(c => c.id === collegeId);
+      if (!college) return;
+
+      const updatedDepartments = (college.departments || []).map(d => d === oldName ? newName : d);
+
+      try {
+          const updatedCollege = await api.put(`/colleges/${collegeId}`, { departments: updatedDepartments }, currentUser.token);
+          setColleges(prev => prev.map(c => c.id === collegeId ? { ...updatedCollege, id: updatedCollege._id } : c));
+
+          // Also update all users in that department
+          const usersInDept = Object.values(users).filter(u => u.collegeId === collegeId && u.department === oldName);
+
+          if (usersInDept.length > 0) {
+              // Using Promise.all to perform concurrent updates
+              await Promise.all(usersInDept.map(user =>
+                  api.put(`/auth/users/${user.id}`, { department: newName }, currentUser.token)
+              ));
+
+              // Single state update for all affected users
+              setUsers(prev => {
+                  const newUsers = { ...prev };
+                  usersInDept.forEach(user => {
+                      if (newUsers[user.id]) {
+                          newUsers[user.id] = { ...newUsers[user.id], department: newName };
+                      }
+                  });
+                  return newUsers;
+              });
+          }
+      } catch (err: any) {
+          console.error("Failed to edit college department", err);
+          alert("Failed to update department for some users. Please refresh.");
+      }
+  };
+
+  const onDeleteCollegeDepartment = async (collegeId: string, deptName: string) => {
+      if (!currentUser) return;
+      const college = colleges.find(c => c.id === collegeId);
+      if (!college) return;
+
+      const updatedDepartments = (college.departments || []).filter(d => d !== deptName);
+
+      try {
+          const updatedCollege = await api.put(`/colleges/${collegeId}`, { departments: updatedDepartments }, currentUser.token);
+          setColleges(prev => prev.map(c => c.id === collegeId ? { ...updatedCollege, id: updatedCollege._id } : c));
+      } catch (err: any) {
+          console.error("Failed to delete college department", err);
       }
   };
 
@@ -928,7 +981,8 @@ const App = () => {
       if (!currentUser) return;
       try {
           // This might need specific backend logic for nested Map update
-          await api.put(`/colleges/${collegeId}`, { [`classes.${department}`]: classes }, currentUser.token);
+          const updatedCollege = await api.put(`/colleges/${collegeId}`, { [`classes.${department}`]: classes }, currentUser.token);
+          setColleges(prev => prev.map(c => c.id === collegeId ? { ...updatedCollege, id: updatedCollege._id } : c));
       } catch (err: any) {
           console.error("Failed to update college classes", err);
       }
@@ -1212,8 +1266,8 @@ const App = () => {
             onCreateUser={handleCreateUser}
             onDeleteCourse={handleDeleteCourse}
             onUpdateCollegeDepartments={onUpdateCollegeDepartments}
-            onEditCollegeDepartment={(cid, oldName, newName) => {}}
-            onDeleteCollegeDepartment={(cid, deptName) => {}}
+            onEditCollegeDepartment={onEditCollegeDepartment}
+            onDeleteCollegeDepartment={onDeleteCollegeDepartment}
             onUpdateCourseFaculty={handleUpdateCourseFaculty}
             postCardProps={{
                 onReaction: handleReaction,

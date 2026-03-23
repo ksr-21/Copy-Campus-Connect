@@ -45,28 +45,40 @@ interface HodPageProps {
   onUpdateUserRole: (userId: string, updateData: { tag: UserTag, department: string }) => void;
 }
 
-const SidebarItem = ({ id, label, icon: Icon, onClick, active }: any) => (
+const SidebarItem: React.FC<{ id: string; label: string; icon: React.ElementType; onClick: () => void; active: boolean }> = ({ id, label, icon: Icon, onClick, active }) => (
     <button
         onClick={onClick}
-        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${active ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-[0.5rem] transition-all duration-200 ${active ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02]' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'}`}
     >
-        <Icon className="w-5 h-5" />
-        <span className="font-medium text-sm">{label}</span>
-        {active && <ChevronRightIcon className="w-4 h-4 ml-auto opacity-50" />}
+        <Icon className={`w-5 h-5 ${active ? 'opacity-100' : 'opacity-70'}`} />
+        <span className="font-bold text-sm tracking-tight">{label}</span>
+        {active && <ChevronRightIcon className="w-4 h-4 ml-auto opacity-70" />}
     </button>
 );
 
-const StatCard = ({ label, value, icon: Icon, colorClass, subText }: any) => (
-    <div className="bg-card rounded-xl p-5 shadow-sm border border-border flex items-center justify-between hover:shadow-md transition-shadow">
-        <div>
-            <p className="text-muted-foreground text-xs uppercase font-bold tracking-wider">{label}</p>
-            <div className="flex items-baseline gap-2 mt-1">
-                <p className="text-2xl font-extrabold text-card-foreground">{value}</p>
-                {subText && <p className="text-xs text-muted-foreground">{subText}</p>}
+const StatCard: React.FC<{
+    label: string;
+    value: number | string;
+    icon: React.ElementType;
+    iconBgClass: string;
+    trend?: 'up' | 'down';
+    subText?: string;
+}> = ({ label, value, icon: Icon, iconBgClass, trend, subText }) => (
+    <div className="bg-card rounded-2xl p-6 shadow-sm border border-border flex items-center justify-between hover:shadow-md transition-all duration-300 group">
+        <div className="space-y-1">
+            <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-[0.1em]">{label}</p>
+            <div className="flex items-center gap-2">
+                <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tighter">{value}</p>
+                {trend && (
+                    <div className={`flex items-center justify-center w-6 h-6 rounded-full ${trend === 'up' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                        {trend === 'up' ? <ArrowRightIcon className="w-3.5 h-3.5 -rotate-45" /> : <ArrowRightIcon className="w-3.5 h-3.5 rotate-45" />}
+                    </div>
+                )}
             </div>
+            {subText && <p className="text-xs font-bold text-slate-400 dark:text-slate-500">{subText}</p>}
         </div>
-        <div className={`p-3 rounded-full ${colorClass}`}>
-            <Icon className="w-6 h-6" />
+        <div className={`w-14 h-14 rounded-[0.75rem] flex items-center justify-center ${iconBgClass} transition-transform duration-300 group-hover:scale-110`}>
+            <Icon className="w-7 h-7" />
         </div>
     </div>
 );
@@ -239,11 +251,11 @@ const CreateNoticeModal = ({ onClose, onCreateNotice }: any) => {
 
 const DashboardHome = ({ stats, recentActivity, alerts }: any) => (
     <div className="space-y-8 animate-fade-in">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Total Students" value={stats.studentCount} icon={UsersIcon} colorClass="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-            <StatCard label="Total Faculty" value={stats.facultyCount} icon={UserPlusIcon} colorClass="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
-            <StatCard label="Active Classes" value={stats.classCount} icon={BookOpenIcon} colorClass="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" />
-            <StatCard label="Avg Attendance" value={`${stats.avgAttendance}%`} icon={ChartPieIcon} colorClass="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard label="Total Students" value={stats.studentCount} icon={UsersIcon} iconBgClass="bg-blue-50 text-blue-600 dark:bg-blue-900/20" trend="up" subText="Active Learners" />
+            <StatCard label="Core Faculty" value={stats.facultyCount} icon={UserPlusIcon} iconBgClass="bg-purple-50 text-purple-600 dark:bg-purple-900/20" trend="up" subText="Academic Staff" />
+            <StatCard label="Active Classes" value={stats.classCount} icon={BookOpenIcon} iconBgClass="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20" subText="Managed Divisions" />
+            <StatCard label="Avg Attendance" value={`${stats.avgAttendance}%`} icon={ChartPieIcon} iconBgClass="bg-amber-50 text-amber-600 dark:bg-amber-900/20" subText="Institutional KPI" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -705,7 +717,7 @@ const AcademicsView = ({
 const HodPage: React.FC<HodPageProps> = (props) => {
     const { currentUser, onNavigate, currentPath, isViewingAsDirector, courses, onCreateCourse, notices, users, allUsers, onCreateNotice, onDeleteNotice, onCreateUser, onCreateUsersBatch, onUpdateCourseFaculty, colleges, onUpdateCollegeClasses, onDeleteCourse, onUpdateCourse } = props;
 
-    const [activeSection, setActiveSection] = useState<'dashboard' | 'academics' | 'faculty' | 'students' | 'timetable' | 'notices' | 'approvals'>('dashboard');
+    const [activeSection, setActiveSection] = useState<'dashboard' | 'academics' | 'faculty' | 'students' | 'timetable' | 'notices' | 'approvals' | 'settings'>('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isCreateNoticeModalOpen, setIsCreateNoticeModalOpen] = useState(false);
     const [loadingTimeout, setLoadingTimeout] = useState(false);
@@ -886,14 +898,15 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                             <h2 className="text-xl font-bold text-foreground">Menu</h2>
                             <button onClick={() => setMobileMenuOpen(false)}><CloseIcon className="w-6 h-6 text-muted-foreground" /></button>
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                             <SidebarItem id="dashboard" label="Dashboard" icon={ChartPieIcon} onClick={() => {setActiveSection('dashboard'); setMobileMenuOpen(false);}} active={activeSection === 'dashboard'} />
                             <SidebarItem id="academics" label="Academics & Classes" icon={BookOpenIcon} onClick={() => {setActiveSection('academics'); setMobileMenuOpen(false);}} active={activeSection === 'academics'} />
-                            <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">People</div>
-                            <SidebarItem id="faculty" label="Faculty" icon={UserPlusIcon} onClick={() => {setActiveSection('faculty'); setMobileMenuOpen(false);}} active={activeSection === 'faculty'} />
-                            <SidebarItem id="students" label="Students" icon={UsersIcon} onClick={() => {setActiveSection('students'); setMobileMenuOpen(false);}} active={activeSection === 'students'} />
-                            <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">Communication</div>
-                            <SidebarItem id="notices" label="Notices" icon={MegaphoneIcon} onClick={() => {setActiveSection('notices'); setMobileMenuOpen(false);}} active={activeSection === 'notices'} />
+                            <div className="pt-4 pb-2 border-t border-slate-100 dark:border-slate-800" />
+                            <SidebarItem id="faculty" label="Faculty Register" icon={UserPlusIcon} onClick={() => {setActiveSection('faculty'); setMobileMenuOpen(false);}} active={activeSection === 'faculty'} />
+                            <SidebarItem id="students" label="Student Database" icon={UsersIcon} onClick={() => {setActiveSection('students'); setMobileMenuOpen(false);}} active={activeSection === 'students'} />
+                            <div className="pt-4 pb-2 border-t border-slate-100 dark:border-slate-800" />
+                            <SidebarItem id="notices" label="Department Notices" icon={MegaphoneIcon} onClick={() => {setActiveSection('notices'); setMobileMenuOpen(false);}} active={activeSection === 'notices'} />
+                            <SidebarItem id="settings" label="Dept Settings" icon={SettingsIcon} onClick={() => {setActiveSection('settings'); setMobileMenuOpen(false);}} active={activeSection === 'settings'} />
                         </div>
                     </div>
                 </aside>
@@ -904,14 +917,15 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                 <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-112px)] md:h-[calc(100vh-64px)] bg-muted/10 pb-32 lg:pb-8">
 
                     {activeSection === 'dashboard' && (
-                        <div className="space-y-6 animate-fade-in">
-                            <div className="flex justify-between items-end">
-                                <div>
-                                    <h1 className="text-3xl font-black text-foreground mb-1">{myDept}</h1>
-                                    <p className="text-muted-foreground font-medium">Department Overview</p>
+                        <div className="space-y-8 animate-fade-in">
+                            <div className="flex justify-between items-start">
+                                <div className="space-y-1">
+                                    <h1 className="text-4xl font-black text-slate-900 dark:text-slate-50 tracking-tighter">{myDept}</h1>
+                                    <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">Hello, HOD. Here is your department snapshot.</p>
                                 </div>
-                                <div className="text-right hidden sm:block">
-                                    <p className="text-sm font-bold text-primary">{college.name}</p>
+                                <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 px-4 py-2 rounded-full">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.1em] text-emerald-600 dark:text-emerald-400">Status: Operational</span>
                                 </div>
                             </div>
 
@@ -954,6 +968,18 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                         />
                     )}
 
+                    {activeSection === 'settings' && (
+                        <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
+                            <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
+                                <SettingsIcon className="w-12 h-12 text-primary" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-foreground">Department Settings</h2>
+                            <p className="text-muted-foreground mt-2 max-w-md">
+                                Configure department profile, roles, and academic preferences.
+                            </p>
+                        </div>
+                    )}
+
                     {activeSection === 'notices' && (
                         <div className="space-y-6 animate-fade-in">
                             <div className="flex justify-between items-center">
@@ -963,7 +989,7 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                                 </button>
                             </div>
                             <div className="grid gap-4">
-                                {notices.filter(n => !n.collegeId || n.collegeId === college.id).map(notice => ( // Basic filter, improve later
+                                {notices.filter(n => (!n.collegeId || n.collegeId === college.id) && (!n.targetDepartments || n.targetDepartments.includes(myDept))).map(notice => (
                                     <div key={notice.id} className="bg-card p-5 rounded-xl border border-border shadow-sm relative group">
                                         <button onClick={() => onDeleteNotice(notice.id)} className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full opacity-0 group-hover:opacity-100 transition-all">
                                             <TrashIcon className="w-4 h-4"/>
