@@ -5,12 +5,13 @@ import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
-import { auth } from '../firebase';
 import {
     BuildingIcon, UserPlusIcon, PlusIcon, CloseIcon, TrashIcon, UsersIcon,
-    ClockIcon, CheckCircleIcon, ChevronRightIcon, FileTextIcon, ChartPieIcon,
-    SettingsIcon, MenuIcon, XCircleIcon, MailIcon, LockIcon, CheckSquareIcon,
-    ChartBarIcon, CalendarIcon, ArrowRightIcon
+    ClockIcon, CheckCircleIcon, ChevronRightIcon, FileTextIcon,
+    SettingsIcon, MenuIcon, XCircleIcon,
+    ChartBarIcon, CalendarIcon, LayoutGridIcon, ActivityIcon,
+    ClipboardCheckIcon, TrendingDownIcon, RadioIcon, DatabaseIcon, TrendingUpIcon, ListIcon,
+    ChartPieIcon
 } from '../components/Icons';
 
 interface DirectorPageProps {
@@ -39,7 +40,7 @@ interface DirectorPageProps {
     onCreateUser: (userData: Omit<User, 'id'>, password?: string) => Promise<void>;
     onDeleteCourse: (courseId: string) => void;
     onUpdateCollegeDepartments: (collegeId: string, departments: string[]) => void;
-    onEditCollegeDepartment: (collegeId: string, oldName, newName) => void;
+    onEditCollegeDepartment: (collegeId: string, oldName: string, newName: string) => void;
     onDeleteCollegeDepartment: (collegeId: string, deptName: string) => void;
     onUpdateCourseFaculty: (courseId: string, newFacultyId: string) => void;
     postCardProps: {
@@ -60,29 +61,37 @@ interface DirectorPageProps {
 const SidebarItem: React.FC<{ id: string; label: string; icon: React.ElementType; onClick: () => void; active: boolean }> = ({ id, label, icon: Icon, onClick, active }) => (
     <button
         onClick={onClick}
-        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${active ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-[0.5rem] transition-all duration-200 ${active ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02]' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'}`}
     >
-        <Icon className="w-5 h-5" />
-        <span className="font-medium text-sm">{label}</span>
-        {active && <ChevronRightIcon className="w-4 h-4 ml-auto opacity-50" />}
+        <Icon className={`w-5 h-5 ${active ? 'opacity-100' : 'opacity-70'}`} />
+        <span className="font-bold text-sm tracking-tight">{label}</span>
+        {active && <ChevronRightIcon className="w-4 h-4 ml-auto opacity-70" />}
     </button>
 );
 
-const StatCard: React.FC<{ label: string; value: number | string; icon: React.ElementType; colorClass: string; trend?: 'up' | 'down' }> = ({ label, value, icon: Icon, colorClass, trend }) => (
-    <div className="bg-card rounded-xl p-5 shadow-sm border border-border flex items-center justify-between hover:shadow-md transition-shadow">
-        <div>
-            <p className="text-muted-foreground text-xs uppercase font-bold tracking-wider">{label}</p>
-            <div className="flex items-baseline gap-2 mt-1">
-                <p className="text-2xl font-extrabold text-card-foreground">{value}</p>
+const StatCard: React.FC<{
+    label: string;
+    value: number | string;
+    icon: React.ElementType;
+    iconBgClass: string;
+    trend?: 'up' | 'down';
+    subText?: string;
+}> = ({ label, value, icon: Icon, iconBgClass, trend, subText }) => (
+    <div className="bg-card rounded-2xl p-6 shadow-sm border border-border flex items-center justify-between hover:shadow-md transition-all duration-300 group">
+        <div className="space-y-1">
+            <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-[0.1em]">{label}</p>
+            <div className="flex items-center gap-2">
+                <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tighter">{value}</p>
                 {trend && (
-                    <span className={`text-xs font-bold ${trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                        {trend === 'up' ? '↑' : '↓'}
-                    </span>
+                    <div className={`flex items-center justify-center w-6 h-6 rounded-full ${trend === 'up' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                        {trend === 'up' ? <TrendingUpIcon className="w-3.5 h-3.5" /> : <TrendingDownIcon className="w-3.5 h-3.5" />}
+                    </div>
                 )}
             </div>
+            {subText && <p className="text-xs font-bold text-slate-400 dark:text-slate-500">{subText}</p>}
         </div>
-        <div className={`p-3 rounded-full ${colorClass}`}>
-            <Icon className="w-6 h-6" />
+        <div className={`w-14 h-14 rounded-[0.75rem] flex items-center justify-center ${iconBgClass} transition-transform duration-300 group-hover:scale-110`}>
+            <Icon className="w-7 h-7" />
         </div>
     </div>
 );
@@ -158,9 +167,6 @@ const CreateStaffModal: React.FC<{
     );
 };
 
-// ... rest of DirectorPage.tsx (DirectorSetupView, ReportsView, Main Component) remains unchanged,
-// just ensuring CreateStaffModal above replaces the existing one.
-
 // --- Director Setup View (Initial) ---
 
 const DirectorSetupView: React.FC<{ college: College; onSave: (collegeId: string, departments: string[]) => void; }> = ({ college, onSave }) => {
@@ -234,7 +240,6 @@ const ReportsView: React.FC<{ courses: Course[]; departments: string[] }> = ({ c
 
     const stats = useMemo(() => {
         const selectedDate = new Date(filterDate);
-        const isToday = selectedDate.toDateString() === new Date().toDateString();
 
         let totalPresent = 0;
         let totalStudents = 0;
@@ -257,8 +262,6 @@ const ReportsView: React.FC<{ courses: Course[]; departments: string[] }> = ({ c
                 });
             }
 
-            // Only count stats if attendance was taken OR we are looking at past dates (where 0 is valid if no class)
-            // For simpler logic, we calculate based on enrolled students if a record exists
             if (record) {
                 totalPresent += presentCount;
                 totalStudents += enrolledCount;
@@ -388,7 +391,7 @@ const ReportsView: React.FC<{ courses: Course[]; departments: string[] }> = ({ c
 
 const DirectorPage: React.FC<DirectorPageProps> = (props) => {
     const { currentUser, allUsers, onNavigate, currentPath, colleges, onUpdateCollegeDepartments, onCreateUser, onApproveHodRequest, onDeclineHodRequest, onApproveTeacherRequest, onDeclineTeacherRequest, onToggleFreezeUser, onDeleteUser, allCourses } = props;
-    const [activeSection, setActiveSection] = useState<'dashboard' | 'departments' | 'hods' | 'faculty' | 'students' | 'approvals' | 'reports' | 'settings'>('dashboard');
+    const [activeSection, setActiveSection] = useState<'dashboard' | 'departments' | 'faculty' | 'students' | 'approvals' | 'reports' | 'settings'>('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [approvingId, setApprovingId] = useState<string | null>(null);
 
@@ -401,7 +404,78 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
 
     const handleLogout = () => { logout(onNavigate); };
 
-    const college = colleges.find(c => c.id === currentUser.collegeId);
+    const college = useMemo(() => colleges.find(c => c.id === currentUser.collegeId), [colleges, currentUser.collegeId]);
+
+    // Data Filtering & Logic for Dashboard
+    const hods = useMemo(() => college ? allUsers.filter(u => u.tag === 'HOD/Dean' && u.collegeId === college.id && u.isApproved) : [], [allUsers, college]);
+    const faculty = useMemo(() => college ? allUsers.filter(u => u.tag === 'Teacher' && u.collegeId === college.id && u.isApproved) : [], [allUsers, college]);
+    const students = useMemo(() => college ? allUsers.filter(u => u.tag === 'Student' && u.collegeId === college.id && u.isApproved) : [], [allUsers, college]);
+    const pendingUsers = useMemo(() => college ? allUsers.filter(u => u.collegeId === college.id && !u.isApproved && u.isRegistered) : [], [allUsers, college]);
+    const myCollegeCourses = useMemo(() => college ? allCourses.filter(c => c.collegeId === college.id) : [], [allCourses, college]);
+
+    // Calculate Attendance Stats for Dashboard
+    const attendanceStats = useMemo(() => {
+        const today = new Date().toDateString();
+        let totalPresentToday = 0;
+        let totalStudentsToday = 0;
+        let cumulativePresent = 0;
+        let cumulativeTotal = 0;
+
+        const deptAttendance: { [key: string]: { present: number, total: number } } = {};
+        if (college) {
+            (college.departments || []).forEach(d => deptAttendance[d] = { present: 0, total: 0 });
+
+            myCollegeCourses.forEach(course => {
+                const enrolledCount = course.students?.length || 0;
+
+                // For Daily Attendance (Today)
+                const todayRecord = course.attendanceRecords?.find(r => new Date(r.date).toDateString() === today);
+                if (todayRecord) {
+                    let present = 0;
+                    Object.values(todayRecord.records).forEach((status: any) => {
+                        if (status.status === 'present') present++;
+                    });
+                    totalPresentToday += present;
+                    totalStudentsToday += enrolledCount;
+
+                    if (deptAttendance[course.department]) {
+                        deptAttendance[course.department].present += present;
+                        deptAttendance[course.department].total += enrolledCount;
+                    }
+                }
+
+                // For Avg. Attendance (Cumulative)
+                course.attendanceRecords?.forEach(record => {
+                    let present = 0;
+                    Object.values(record.records).forEach((status: any) => {
+                        if (status.status === 'present') present++;
+                    });
+                    cumulativePresent += present;
+                    cumulativeTotal += enrolledCount;
+                });
+            });
+        }
+
+        const dailyPercentage = totalStudentsToday > 0 ? Math.round((totalPresentToday / totalStudentsToday) * 100) : 0;
+        const avgPercentage = cumulativeTotal > 0 ? Math.round((cumulativePresent / cumulativeTotal) * 100) : 0;
+
+        const deptChartData = Object.entries(deptAttendance).map(([dept, data]) => ({
+            department: dept,
+            percentage: data.total > 0 ? Math.round((data.present / data.total) * 100) : 0
+        })).sort((a, b) => b.percentage - a.percentage);
+
+        return { dailyPercentage, avgPercentage, deptChartData };
+    }, [myCollegeCourses, college]);
+
+    const statsSummary = useMemo(() => ({
+        deptCount: college?.departments?.length || 0,
+        hodCount: hods.length,
+        facultyCount: faculty.length,
+        studentCount: students.length,
+        pendingApprovals: pendingUsers.length,
+        dailyAttendance: attendanceStats.dailyPercentage,
+        avgAttendance: attendanceStats.avgPercentage
+    }), [college, hods, faculty, students, pendingUsers, attendanceStats]);
 
     if (currentUser.isApproved === false) {
         return (
@@ -418,21 +492,6 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
 
     if (!college) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     if (!college.departments || college.departments.length === 0) return <DirectorSetupView college={college} onSave={onUpdateCollegeDepartments} />;
-
-    // Data Filtering
-    const hods = allUsers.filter(u => u.tag === 'HOD/Dean' && u.collegeId === college.id && u.isApproved);
-    const faculty = allUsers.filter(u => u.tag === 'Teacher' && u.collegeId === college.id && u.isApproved);
-    const students = allUsers.filter(u => u.tag === 'Student' && u.collegeId === college.id && u.isApproved);
-    const pendingUsers = allUsers.filter(u => u.collegeId === college.id && !u.isApproved && u.isRegistered);
-    const myCollegeCourses = allCourses.filter(c => c.collegeId === college.id);
-
-    const stats = {
-        deptCount: college.departments.length,
-        hodCount: hods.length,
-        facultyCount: faculty.length,
-        studentCount: students.length,
-        pendingApprovals: pendingUsers.length
-    };
 
     const handleAddDepartment = () => {
         if (newDeptName.trim()) {
@@ -473,15 +532,19 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                             <h2 className="text-xl font-bold text-foreground">Menu</h2>
                             <button onClick={() => setMobileMenuOpen(false)}><CloseIcon className="w-6 h-6 text-muted-foreground" /></button>
                         </div>
-                        <div className="space-y-1">
-                            <SidebarItem id="dashboard" label="Dashboard" icon={ChartPieIcon} onClick={() => {setActiveSection('dashboard'); setMobileMenuOpen(false);}} active={activeSection === 'dashboard'} />
-                            <SidebarItem id="departments" label="Departments" icon={BuildingIcon} onClick={() => {setActiveSection('departments'); setMobileMenuOpen(false);}} active={activeSection === 'departments'} />
-                            <SidebarItem id="reports" label="Attendance Reports" icon={ChartBarIcon} onClick={() => {setActiveSection('reports'); setMobileMenuOpen(false);}} active={activeSection === 'reports'} />
-                            <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">Users</div>
-                            <SidebarItem id="hods" label="HODs" icon={UserPlusIcon} onClick={() => {setActiveSection('hods'); setMobileMenuOpen(false);}} active={activeSection === 'hods'} />
-                            <SidebarItem id="faculty" label="Faculty" icon={UsersIcon} onClick={() => {setActiveSection('faculty'); setMobileMenuOpen(false);}} active={activeSection === 'faculty'} />
-                            <SidebarItem id="students" label="Students" icon={UsersIcon} onClick={() => {setActiveSection('students'); setMobileMenuOpen(false);}} active={activeSection === 'students'} />
-                            <SidebarItem id="approvals" label="Approvals" icon={CheckCircleIcon} onClick={() => {setActiveSection('approvals'); setMobileMenuOpen(false);}} active={activeSection === 'approvals'} />
+                        <div className="space-y-2">
+                            <SidebarItem id="dashboard" label="Command Center" icon={LayoutGridIcon} onClick={() => {setActiveSection('dashboard'); setMobileMenuOpen(false);}} active={activeSection === 'dashboard'} />
+                            <SidebarItem id="departments" label="Departments & Heads" icon={ListIcon} onClick={() => {setActiveSection('departments'); setMobileMenuOpen(false);}} active={activeSection === 'departments'} />
+                            <SidebarItem id="reports" label="Attendance Reports" icon={ChartPieIcon} onClick={() => {setActiveSection('reports'); setMobileMenuOpen(false);}} active={activeSection === 'reports'} />
+                            <SidebarItem id="portfolio" label="Academic Portfolio" icon={FileTextIcon} onClick={() => {}} active={false} />
+                            <SidebarItem id="schedules" label="Master Schedules" icon={CalendarIcon} onClick={() => {}} active={false} />
+                            <SidebarItem id="intelligence" label="Usage Intelligence" icon={ChartBarIcon} onClick={() => {}} active={false} />
+                            <SidebarItem id="broadcast" label="Broadcast Center" icon={RadioIcon} onClick={() => {}} active={false} />
+                            <div className="pt-4 pb-2 border-t border-slate-100 dark:border-slate-800" />
+                            <SidebarItem id="faculty_reg" label="Faculty Register" icon={UserPlusIcon} onClick={() => {setActiveSection('faculty'); setMobileMenuOpen(false);}} active={activeSection === 'faculty'} />
+                            <SidebarItem id="student_db" label="Student Database" icon={DatabaseIcon} onClick={() => {setActiveSection('students'); setMobileMenuOpen(false);}} active={activeSection === 'students'} />
+                            <SidebarItem id="tasks" label="Verification Tasks" icon={ClipboardCheckIcon} onClick={() => {setActiveSection('approvals'); setMobileMenuOpen(false);}} active={activeSection === 'approvals'} />
+                            <SidebarItem id="settings" label="College Settings" icon={SettingsIcon} onClick={() => {}} active={false} />
                         </div>
                     </div>
                 </aside>
@@ -492,34 +555,98 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                 <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-112px)] md:h-[calc(100vh-64px)] bg-muted/10 pb-32 lg:pb-8">
 
                     {activeSection === 'dashboard' && (
-                        <div className="space-y-6 animate-fade-in">
-                            <h2 className="text-3xl font-bold text-foreground">Overview</h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <StatCard label="Departments" value={stats.deptCount} icon={BuildingIcon} colorClass="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" />
-                                <StatCard label="HODs" value={stats.hodCount} icon={UserPlusIcon} colorClass="bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400" />
-                                <StatCard label="Faculty" value={stats.facultyCount} icon={UsersIcon} colorClass="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400" />
-                                <StatCard label="Students" value={stats.studentCount} icon={UsersIcon} colorClass="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" trend="up" />
+                        <div className="space-y-8 animate-fade-in">
+                            {/* Header Section */}
+                            <div className="flex justify-between items-start">
+                                <div className="space-y-1">
+                                    <h1 className="text-4xl font-black text-slate-900 dark:text-slate-50 tracking-tighter">Command Center</h1>
+                                    <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">Hello, Director. Here is your institutional snapshot.</p>
+                                </div>
+                                <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 px-4 py-2 rounded-full">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.1em] text-emerald-600 dark:text-emerald-400">System Health: Optimal</span>
+                                </div>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-                                    <h3 className="font-bold text-lg mb-4">Pending Approvals</h3>
-                                    {stats.pendingApprovals > 0 ? (
-                                        <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-lg flex justify-between items-center">
-                                            <div>
-                                                <p className="text-amber-800 dark:text-amber-200 font-bold">{stats.pendingApprovals} Users Waiting</p>
-                                                <p className="text-xs text-amber-600 dark:text-amber-400">Review new registrations</p>
-                                            </div>
-                                            <button onClick={() => setActiveSection('approvals')} className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors">Review</button>
-                                        </div>
-                                    ) : <p className="text-muted-foreground">No pending approvals.</p>}
-                                </div>
-                                <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-                                    <h3 className="font-bold text-lg mb-4">System Health</h3>
-                                    <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
-                                        <CheckCircleIcon className="w-6 h-6"/>
-                                        <span className="font-medium">All Systems Operational</span>
+                            {/* Stat Cards Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <StatCard
+                                    label="Total Reach"
+                                    value={statsSummary.studentCount}
+                                    subText="Active Learners"
+                                    icon={UsersIcon}
+                                    iconBgClass="bg-blue-50 text-blue-600 dark:bg-blue-900/20"
+                                    trend="up"
+                                />
+                                <StatCard
+                                    label="Core Faculty"
+                                    value={statsSummary.facultyCount}
+                                    subText="Academic Staff"
+                                    icon={UserPlusIcon}
+                                    iconBgClass="bg-purple-50 text-purple-600 dark:bg-purple-900/20"
+                                    trend="up"
+                                />
+                                <StatCard
+                                    label="Portfolio"
+                                    value={statsSummary.deptCount}
+                                    subText="Departments"
+                                    icon={LayoutGridIcon}
+                                    iconBgClass="bg-slate-50 text-slate-600 dark:bg-slate-800"
+                                />
+                                <StatCard
+                                    label="Daily Attendance"
+                                    value={`${statsSummary.dailyAttendance}%`}
+                                    subText="Marked Today"
+                                    icon={ActivityIcon}
+                                    iconBgClass="bg-orange-50 text-orange-600 dark:bg-orange-900/20"
+                                    trend={statsSummary.dailyAttendance > 50 ? 'up' : 'down'}
+                                />
+                                <StatCard
+                                    label="Avg. Attendance"
+                                    value={`${statsSummary.avgAttendance}%`}
+                                    subText="Cumulative Log"
+                                    icon={ChartBarIcon}
+                                    iconBgClass="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20"
+                                />
+                            </div>
+
+                            {/* Chart Section */}
+                            <div className="bg-card rounded-[2.5rem] p-10 border border-border shadow-sm">
+                                <div className="flex justify-between items-center mb-10">
+                                    <div className="flex items-center gap-3">
+                                        <ActivityIcon className="w-6 h-6 text-primary" />
+                                        <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Department Attendance</h3>
                                     </div>
+                                    <div className="bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Real-time Analysis</span>
+                                    </div>
+                                </div>
+
+                                <div className="h-64 w-full flex items-end gap-6 md:gap-12 px-4">
+                                    {attendanceStats.deptChartData.map((item, index) => (
+                                        <div key={index} className="flex-1 flex flex-col items-center gap-2 group h-full">
+                                            <div className="relative w-full flex flex-col justify-end h-full min-w-[3rem]">
+                                                <div
+                                                    className="w-full bg-emerald-500 rounded-t-xl transition-all duration-500"
+                                                    style={{ height: `${Math.max(item.percentage, 2)}%` }}
+                                                >
+                                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold py-1 px-2 rounded whitespace-nowrap opacity-100">
+                                                        {item.percentage}%
+                                                    </div>
+                                                </div>
+                                                {/* Background track */}
+                                                <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800/50 -z-10 rounded-t-xl"></div>
+                                            </div>
+                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter text-center w-full truncate">
+                                                {item.department}
+                                            </span>
+                                        </div>
+                                    ))}
+                                    {attendanceStats.deptChartData.length === 0 && (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-400 font-bold italic">
+                                            No department data available yet.
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -530,44 +657,97 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                     )}
 
                     {activeSection === 'departments' && (
-                        <div className="space-y-6 animate-fade-in">
-                            <div className="flex justify-between items-center">
-                                <h2 className="text-2xl font-bold text-foreground">Departments</h2>
+                        <div className="space-y-12 animate-fade-in">
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-2xl font-bold text-foreground">Departments</h2>
+                                </div>
+
+                                <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
+                                    <div className="flex gap-2 mb-6">
+                                        <input
+                                            type="text"
+                                            value={newDeptName}
+                                            onChange={e => setNewDeptName(e.target.value)}
+                                            placeholder="New Department Name"
+                                            className="flex-1 px-4 py-2 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                            onKeyDown={e => e.key === 'Enter' && handleAddDepartment()}
+                                        />
+                                        <button onClick={handleAddDepartment} className="px-4 py-2 bg-primary text-primary-foreground font-bold rounded-lg hover:bg-primary/90"><PlusIcon className="w-5 h-5"/></button>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {college.departments?.map(dept => (
+                                            <div key={dept} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg border border-border">
+                                                <span className="font-medium text-foreground">{dept}</span>
+                                                <button onClick={() => handleDeleteDepartment(dept)} className="p-2 text-destructive hover:bg-destructive/10 rounded-full transition-colors"><TrashIcon className="w-4 h-4"/></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-                                <div className="flex gap-2 mb-6">
-                                    <input
-                                        type="text"
-                                        value={newDeptName}
-                                        onChange={e => setNewDeptName(e.target.value)}
-                                        placeholder="New Department Name"
-                                        className="flex-1 px-4 py-2 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                                        onKeyDown={e => e.key === 'Enter' && handleAddDepartment()}
-                                    />
-                                    <button onClick={handleAddDepartment} className="px-4 py-2 bg-primary text-primary-foreground font-bold rounded-lg hover:bg-primary/90"><PlusIcon className="w-5 h-5"/></button>
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-2xl font-bold text-foreground">Head of Departments</h2>
+                                    <button
+                                        onClick={() => openCreateStaffModal('HOD')}
+                                        className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90"
+                                    >
+                                        <PlusIcon className="w-4 h-4"/> Invite HOD
+                                    </button>
                                 </div>
-                                <div className="space-y-2">
-                                    {college.departments?.map(dept => (
-                                        <div key={dept} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg border border-border">
-                                            <span className="font-medium text-foreground">{dept}</span>
-                                            <button onClick={() => handleDeleteDepartment(dept)} className="p-2 text-destructive hover:bg-destructive/10 rounded-full transition-colors"><TrashIcon className="w-4 h-4"/></button>
-                                        </div>
-                                    ))}
+
+                                <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-muted/50 border-b border-border text-muted-foreground font-bold">
+                                                <tr>
+                                                    <th className="p-4">Name</th>
+                                                    <th className="p-4">Email</th>
+                                                    <th className="p-4">Department</th>
+                                                    <th className="p-4 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-border">
+                                                {hods.map(user => (
+                                                    <tr key={user.id} className="hover:bg-muted/20">
+                                                        <td className="p-4 flex items-center gap-3">
+                                                            <Avatar src={user.avatarUrl} name={user.name} size="sm"/>
+                                                            <span className="font-semibold text-foreground">{user.name}</span>
+                                                        </td>
+                                                        <td className="p-4 text-muted-foreground">{user.email}</td>
+                                                        <td className="p-4"><span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-bold">{user.department}</span></td>
+                                                        <td className="p-4 text-right flex justify-end gap-2">
+                                                            <button
+                                                                onClick={() => onNavigate(`#/director/view/${user.id}`)}
+                                                                className="bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded text-xs font-bold transition-colors"
+                                                            >
+                                                                View Dashboard
+                                                            </button>
+                                                            <button onClick={() => { if(window.confirm('Delete this user?')) onDeleteUser(user.id) }} className="text-destructive hover:bg-destructive/10 p-2 rounded transition-colors"><TrashIcon className="w-4 h-4"/></button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {hods.length === 0 && (
+                                                    <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No records found.</td></tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {(activeSection === 'hods' || activeSection === 'faculty') && (
+                    {activeSection === 'faculty' && (
                         <div className="space-y-6 animate-fade-in">
                             <div className="flex justify-between items-center">
-                                <h2 className="text-2xl font-bold text-foreground">{activeSection === 'hods' ? 'Head of Departments' : 'Faculty Members'}</h2>
+                                <h2 className="text-2xl font-bold text-foreground">Faculty Members</h2>
                                 <button
-                                    onClick={() => openCreateStaffModal(activeSection === 'hods' ? 'HOD' : 'Faculty')}
+                                    onClick={() => openCreateStaffModal('Faculty')}
                                     className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90"
                                 >
-                                    <PlusIcon className="w-4 h-4"/> Invite {activeSection === 'hods' ? 'HOD' : 'Faculty'}
+                                    <PlusIcon className="w-4 h-4"/> Invite Faculty
                                 </button>
                             </div>
 
@@ -583,7 +763,7 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border">
-                                            {(activeSection === 'hods' ? hods : faculty).map(user => (
+                                            {faculty.map(user => (
                                                 <tr key={user.id} className="hover:bg-muted/20">
                                                     <td className="p-4 flex items-center gap-3">
                                                         <Avatar src={user.avatarUrl} name={user.name} size="sm"/>
@@ -602,7 +782,7 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {(activeSection === 'hods' ? hods : faculty).length === 0 && (
+                                            {faculty.length === 0 && (
                                                 <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No records found.</td></tr>
                                             )}
                                         </tbody>

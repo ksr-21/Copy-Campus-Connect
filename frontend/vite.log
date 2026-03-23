@@ -1,0 +1,25 @@
+
+> campusconnect@0.0.0 dev
+> vite
+
+
+  VITE v4.5.14  ready in 321 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+10:07:28 AM [vite] hmr update /pages/DirectorPage.tsx
+(node:4912) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+10:16:13 AM [vite] hmr update /pages/DirectorPage.tsx
+10:18:43 AM [vite] hmr update /pages/DirectorPage.tsx
+10:20:45 AM [vite] hmr update /pages/DirectorPage.tsx
+10:22:17 AM [vite] hmr update /pages/DirectorPage.tsx
+10:24:36 AM [vite] hmr update /components/Icons.tsx
+10:27:30 AM [vite] hmr update /components/Icons.tsx
+10:30:38 AM [vite] hmr update /components/Icons.tsx
+10:32:26 AM [vite] hmr update /components/Icons.tsx
+10:33:24 AM [vite] hmr update /components/Icons.tsx
+10:35:31 AM [vite] hmr update /components/Icons.tsx
+10:36:07 AM [vite] hmr update /pages/DirectorPage.tsx
+10:36:11 AM [vite] hmr update /pages/GroupDetailPage.tsx
+10:37:54 AM [vite] hmr update /pages/HodPage.tsx

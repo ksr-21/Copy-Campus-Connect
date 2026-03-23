@@ -285,7 +285,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                             {mediaDataUrl && (
                                 <div className="mb-3 relative inline-block px-4">
                                     <img src={mediaDataUrl} alt="Preview" className="h-20 w-20 object-cover rounded-lg border border-border" />
-                                    <button onClick={() => setMediaDataUrl(undefined)} className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-1 shadow-sm"><CloseIcon className="w-3 h-3"/></button>
+                                    <button onClick={() => setMediaDataUrl(undefined)} className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-1 shadow-sm"><XCircleIcon className="w-3 h-3"/></button>
                                 </div>
                             )}
                             <form onSubmit={handleSendMessage} className="flex items-center gap-2">
