@@ -21,6 +21,7 @@ interface HodPageProps {
   currentUser: User;
   onNavigate: (path: string) => void;
   currentPath: string;
+  isViewingAsDirector?: boolean;
   courses: Course[];
   onCreateCourse: (courseData: Omit<Course, 'id'>) => void;
   onUpdateCourse: (courseId: string, data: any) => void;
@@ -856,6 +857,20 @@ const HodPage: React.FC<HodPageProps> = (props) => {
 
     return (
         <div className="bg-background min-h-screen flex flex-col">
+            {isViewingAsDirector && (
+                <div className="bg-primary/10 border-b border-primary/20 px-4 py-2 flex justify-between items-center z-50">
+                    <p className="text-xs font-bold text-primary flex items-center gap-2">
+                        <ChartPieIcon className="w-4 h-4"/>
+                        Viewing HOD Dashboard for {myDept}
+                    </p>
+                    <button
+                        onClick={() => onNavigate('#/director')}
+                        className="text-xs font-bold bg-primary text-primary-foreground px-3 py-1 rounded-full hover:bg-primary/90 transition-colors"
+                    >
+                        Return to Director Panel
+                    </button>
+                </div>
+            )}
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
 
             <div className="md:hidden bg-background border-b border-border p-4 flex justify-between items-center sticky top-16 z-30">

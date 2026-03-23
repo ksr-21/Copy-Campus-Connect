@@ -41,8 +41,19 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
     const handleVerifyEmail = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        // Simplify for Demo: Assume all emails are valid or just skip verification
-        setStep('completeProfile');
+        setIsLoading(true);
+        try {
+            const data = await api.post('/auth/check-invite', { email });
+            setPreRegisteredUser(data);
+            setName(data.name || '');
+            setDepartment(data.department || '');
+            if (data.requestedCollegeName) setCollegeName(data.requestedCollegeName);
+            setStep('completeProfile');
+        } catch (err: any) {
+            setError(err.message || 'No invitation found for this email.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleSignup = async (e: React.FormEvent) => {
@@ -62,7 +73,8 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                 password,
                 name,
                 department,
-                tag: 'Student'
+                tag: preRegisteredUser?.tag || 'Student',
+                collegeId: preRegisteredUser?.collegeId
             });
 
             // 2. Handle Avatar Upload if applicable
@@ -206,18 +218,8 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                                         <UserIcon className="w-6 h-6"/>
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-foreground">Student / Faculty / HOD</h3>
-                                        <p className="text-xs text-muted-foreground">Join via university invite</p>
-                                    </div>
-                                </button>
-
-                                <button onClick={() => setStep('registerCollege')} className="flex items-center p-4 bg-card border border-border rounded-xl hover:border-purple-500 hover:bg-muted/50 transition-all group text-left shadow-sm">
-                                    <div className="p-3 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full mr-4 group-hover:scale-110 transition-transform">
-                                        <BuildingIcon className="w-6 h-6"/>
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-foreground">Director</h3>
-                                        <p className="text-xs text-muted-foreground">Register your institute</p>
+                                        <h3 className="font-bold text-foreground">Join via Invite</h3>
+                                        <p className="text-xs text-muted-foreground">For Students, Faculty, HODs, and Directors</p>
                                     </div>
                                 </button>
                             </div>
@@ -316,7 +318,10 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                             {preRegisteredUser ? (
                                 <div className="text-center bg-muted/50 p-3 rounded-lg border border-border">
                                     <h3 className="text-lg font-bold text-foreground">{preRegisteredUser.name}</h3>
-                                    <p className="text-sm text-text-muted">{preRegisteredUser.department} &bull; {preRegisteredUser.tag}</p>
+                                    <p className="text-sm text-text-muted">
+                                        {preRegisteredUser.tag} {preRegisteredUser.department ? `• ${preRegisteredUser.department}` : ''}
+                                    </p>
+                                    {collegeName && <p className="text-xs font-bold text-primary mt-1">{collegeName}</p>}
                                     <p className="text-xs text-text-muted mt-1">Account status: Invited</p>
                                 </div>
                             ) : (

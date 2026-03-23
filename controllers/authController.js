@@ -23,29 +23,53 @@ const registerUser = async (req, res, next) => {
       throw new Error('Please add all required fields (name, email, password)');
     }
 
-    const userExists = await User.findOne({ email });
+    let user = await User.findOne({ email });
 
-    if (userExists) {
+    if (user && user.isRegistered) {
       res.status(400);
-      throw new Error('User already exists');
+      throw new Error('User already exists and is registered. Please log in.');
     }
 
-    const user = await User.create({
-      name,
-      email,
-      password,
-      tag,
-      department,
-      collegeId,
-      yearOfStudy,
-      rollNo,
-      division,
-      profilePicture: avatarUrl,
-      requestedCollegeName,
-      firebaseUid,
-      isRegistered: true,
-      isApproved: tag === 'Super Admin' || tag === 'Director' ? false : true, // Auto approve students/teachers for now, or follow logic
-    });
+    if (user && !user.isRegistered) {
+      // Update existing invite
+      user.name = name || user.name;
+      user.password = password;
+      user.tag = tag || user.tag;
+      user.department = department || user.department;
+      user.collegeId = collegeId || user.collegeId;
+      user.yearOfStudy = yearOfStudy || user.yearOfStudy;
+      user.rollNo = rollNo || user.rollNo;
+      user.division = division || user.division;
+      user.profilePicture = avatarUrl || user.profilePicture;
+      user.firebaseUid = firebaseUid || user.firebaseUid;
+      user.isRegistered = true;
+      // Keep existing approval status or set it based on logic
+      if (tag === 'Super Admin' || tag === 'Director') {
+        user.isApproved = false;
+      } else {
+        // If it was an invite, it's usually pre-approved if created by HOD/Director
+        // But let's stick to the creation logic
+        user.isApproved = user.isApproved || (tag !== 'Super Admin' && tag !== 'Director');
+      }
+      await user.save();
+    } else {
+      user = await User.create({
+        name,
+        email,
+        password,
+        tag,
+        department,
+        collegeId,
+        yearOfStudy,
+        rollNo,
+        division,
+        profilePicture: avatarUrl,
+        requestedCollegeName,
+        firebaseUid,
+        isRegistered: true,
+        isApproved: tag === 'Super Admin' || tag === 'Director' ? false : true,
+      });
+    }
 
     if (user) {
       res.status(201).json({
@@ -61,6 +85,94 @@ const registerUser = async (req, res, next) => {
     } else {
       res.status(400);
       throw new Error('Invalid user data');
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createUserInvite = async (req, res, next) => {
+  try {
+    const {
+      email,
+      name,
+      tag,
+      department,
+      collegeId,
+      yearOfStudy,
+      rollNo,
+      division,
+    } = req.body;
+
+    if (!email || !name || !tag) {
+      res.status(400);
+      throw new Error('Please add all required fields (name, email, tag)');
+    }
+
+    // Role Hierarchy Validation
+    const inviterRole = req.user.tag;
+    const allowedRoles = {
+      'Super Admin': ['Director', 'Super Admin'],
+      'Director': ['HOD/Dean', 'Teacher', 'Student'],
+      'HOD/Dean': ['Teacher', 'Student']
+    };
+
+    if (!allowedRoles[inviterRole] || !allowedRoles[inviterRole].includes(tag)) {
+      res.status(403);
+      throw new Error(`You are not authorized to invite users with the role: ${tag}`);
+    }
+
+    const userExists = await User.findOne({ email });
+
+    if (userExists) {
+      res.status(400);
+      throw new Error('User already exists');
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password: Math.random().toString(36).slice(-10), // Randomized temporary password
+      tag,
+      department,
+      collegeId,
+      yearOfStudy,
+      rollNo,
+      division,
+      isRegistered: false,
+      isApproved: true,
+    });
+
+    res.status(201).json(user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const checkInvite = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400);
+      throw new Error('Please provide an email');
+    }
+    const user = await User.findOne({ email });
+    if (user && !user.isRegistered) {
+      res.status(200).json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        tag: user.tag,
+        department: user.department,
+        collegeId: user.collegeId,
+        isRegistered: false,
+      });
+    } else if (user && user.isRegistered) {
+      res.status(400);
+      throw new Error('Account already registered. Please log in.');
+    } else {
+      res.status(404);
+      throw new Error('No invitation found for this email. Please contact your administrator.');
     }
   } catch (error) {
     next(error);
@@ -220,6 +332,8 @@ module.exports = {
   registerUser,
   loginUser,
   getMe,
+  checkInvite,
+  createUserInvite,
   updateProfile,
   updateUser,
   getUsers,

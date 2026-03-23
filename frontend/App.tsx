@@ -116,7 +116,10 @@ const App = () => {
         }
 
         try {
-            const data = await api.get(`/department-chats?collegeId=${collegeId}&department=${currentUser.department}`, token);
+            // If Director, fetch all department chats for their college
+            // If HOD, fetch only their department's chats
+            const deptFilter = currentUser.tag === 'Director' ? '' : `&department=${currentUser.department}`;
+            const data = await api.get(`/department-chats?collegeId=${collegeId}${deptFilter}`, token);
             setDepartmentChats(data.map((c: any) => ({ ...c, id: c._id })));
         } catch (err) {
             console.error("Failed to fetch department chats", err);
@@ -766,17 +769,17 @@ const App = () => {
   };
 
   // Admin/HOD User Management
-  const handleCreateUser = async (userData: any, password?: string) => {
+  const handleCreateUser = async (userData: any) => {
       if (!currentUser) return;
       try {
-          const newUser = await api.post('/auth/register', {
+          const newUser = await api.post('/auth/invite', {
               ...userData,
-              password: password || 'temporaryPassword123', // Admin generated users need a temp password
               collegeId: currentUser.collegeId,
           }, currentUser.token);
           setUsers(prev => ({ ...prev, [newUser._id]: { ...newUser, id: newUser._id } }));
       } catch (err: any) {
           console.error("Failed to create user", err);
+          throw err;
       }
   };
 
@@ -852,15 +855,14 @@ const App = () => {
   }
 
   // Super Admin
-  const handleCreateCollegeAdmin = async (collegeName: string, email: string, password: string) => {
+  const handleCreateCollegeAdmin = async (collegeName: string, email: string) => {
       if (!currentUser) return;
       try {
-          // 1. Create User (Director)
-          const newUser = await api.post('/auth/register', {
+          // 1. Create User (Director Invite)
+          const newUser = await api.post('/auth/invite', {
               email: email.toLowerCase(),
               name: 'Director (Pending)',
               tag: 'Director',
-              password: password || 'temporaryPassword123',
               isApproved: true,
               requestedCollegeName: collegeName
           }, currentUser.token);
@@ -874,6 +876,11 @@ const App = () => {
 
           // 3. Link College back to User
           await api.put(`/auth/users/${newUser._id}`, { collegeId: college._id }, currentUser.token);
+
+          // Update local state immediately for better responsiveness
+          setColleges(prev => [...prev, { ...college, id: college._id }]);
+          setUsers(prev => ({ ...prev, [newUser._id]: { ...newUser, id: newUser._id, collegeId: college._id } }));
+
           alert("College and Director created successfully!");
       } catch (error: any) {
           alert("Failed to create college: " + error.message);
@@ -892,6 +899,14 @@ const App = () => {
 
           // 2. Update Director User (approve and set collegeId)
           await api.put(`/auth/users/${directorId}`, { isApproved: true, collegeId: college._id }, currentUser.token);
+
+          // Update local state
+          setColleges(prev => [...prev, { ...college, id: college._id }]);
+          setUsers(prev => ({
+              ...prev,
+              [directorId]: { ...prev[directorId], isApproved: true, collegeId: college._id }
+          }));
+
           alert("Director approved and college created successfully.");
       } catch (error: any) {
           console.error("Approval failed:", error);
@@ -1174,12 +1189,22 @@ const App = () => {
       );
   }
 
-  if (currentPath === '#/hod') {
+  if (currentPath === '#/hod' || currentPath.startsWith('#/director/view/')) {
+      let hodUser = currentUser;
+      let isViewingAsDirector = false;
+
+      if (currentPath.startsWith('#/director/view/') && currentUser.tag === 'Director') {
+          const hodId = currentPath.split('/director/view/')[1];
+          hodUser = users[hodId] || currentUser;
+          isViewingAsDirector = true;
+      }
+
       return (
           <HodPage
-            currentUser={currentUser}
+            currentUser={hodUser}
             onNavigate={setCurrentPath}
             currentPath={currentPath}
+            isViewingAsDirector={isViewingAsDirector}
             courses={courses}
             onCreateCourse={handleCreateCourse}
             onUpdateCourse={handleUpdateCourse}

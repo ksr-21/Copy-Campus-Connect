@@ -11,7 +11,7 @@ import Avatar from '../components/Avatar';
 interface SuperAdminPageProps {
   colleges: College[];
   users: { [key: string]: User };
-  onCreateCollegeAdmin: (collegeName: string, email: string, password: string) => Promise<void>;
+  onCreateCollegeAdmin: (collegeName: string, email: string) => Promise<void>;
   onNavigate: (path: string) => void;
   currentUser: User;
   currentPath: string;
@@ -35,7 +35,7 @@ const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ colleges, users, onCrea
     setError('');
     setIsLoading(true);
     try {
-      await onCreateCollegeAdmin(collegeName, adminEmail, 'temporaryPassword123');
+      await onCreateCollegeAdmin(collegeName, adminEmail);
       setCollegeName('');
       setAdminEmail('');
       setIsAddModalOpen(false);
