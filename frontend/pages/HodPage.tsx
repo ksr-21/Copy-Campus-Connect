@@ -703,7 +703,7 @@ const AcademicsView = ({
 };
 
 const HodPage: React.FC<HodPageProps> = (props) => {
-    const { currentUser, onNavigate, currentPath, courses, onCreateCourse, notices, users, allUsers, onCreateNotice, onDeleteNotice, onCreateUser, onCreateUsersBatch, onUpdateCourseFaculty, colleges, onUpdateCollegeClasses, onDeleteCourse, onUpdateCourse } = props;
+    const { currentUser, onNavigate, currentPath, isViewingAsDirector, courses, onCreateCourse, notices, users, allUsers, onCreateNotice, onDeleteNotice, onCreateUser, onCreateUsersBatch, onUpdateCourseFaculty, colleges, onUpdateCollegeClasses, onDeleteCourse, onUpdateCourse } = props;
 
     const [activeSection, setActiveSection] = useState<'dashboard' | 'academics' | 'faculty' | 'students' | 'timetable' | 'notices' | 'approvals'>('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
