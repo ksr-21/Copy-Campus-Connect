@@ -161,7 +161,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   const isSaved = currentUser.savedPosts?.includes(post.id);
   const isReadOnly = currentUser.isApproved === false;
 
-  const [lightboxState, setLightboxState] = useState<{ isOpen: boolean; startIndex: number }>({ isOpen: false, startIndex: 0 });
+  const [lightboxState, setLightboxState] = useState<{ isOpen: boolean; startIndex: number; images?: string[] }>({ isOpen: false, startIndex: 0 });
 
   const postContent = post.content || '';
   const isLongContent = postContent.length > TRUNCATE_LENGTH;
@@ -525,6 +525,23 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                         </div>
                     )}
                 </div>
+                {post.sharedPost.originalIsEvent && post.sharedPost.originalEventDetails && (
+                    <div className="mb-4 rounded-xl overflow-hidden relative group/event shadow-md">
+                        <div className="absolute inset-0 bg-gradient-to-br from-violet-600/90 to-blue-600/90"></div>
+                        <div className="relative p-3 text-white flex flex-row gap-3 items-center">
+                            <div className="flex-shrink-0 bg-white/20 backdrop-blur-md rounded-lg p-2 text-center min-w-[50px] border border-white/20">
+                                <span className="block text-[8px] font-bold uppercase tracking-widest opacity-90">{new Date(post.sharedPost.originalEventDetails.date).toLocaleString('default', { month: 'short' })}</span>
+                                <span className="block text-xl font-black leading-none mt-1">{new Date(post.sharedPost.originalEventDetails.date).getDate()}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-bold leading-tight truncate">{post.sharedPost.originalEventDetails.title}</h4>
+                                <div className="flex items-center gap-2 mt-0.5 text-[10px] font-medium opacity-90">
+                                    <span className="flex items-center gap-1"><MapPinIcon className="w-3 h-3"/> {post.sharedPost.originalEventDetails.location}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <div
                     className="text-muted-foreground text-sm whitespace-pre-wrap font-medium leading-relaxed pl-2 border-l-2 border-border"
                     dangerouslySetInnerHTML={{ __html: isLongSharedPost && !isSharedPostExpanded ? sharedPostOriginalContent.substring(0, TRUNCATE_LENGTH) + '...' : sharedPostOriginalContent }}
@@ -534,6 +551,11 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                         {isSharedPostExpanded ? 'Show less' : 'Show more'}
                     </button>
                 )}
+                {post.sharedPost.originalMediaUrls && post.sharedPost.originalMediaUrls.length > 0 && (
+                    <div className="mt-3">
+                        <ImageGrid images={post.sharedPost.originalMediaUrls} onImageClick={index => setLightboxState({ isOpen: true, startIndex: index, images: post.sharedPost?.originalMediaUrls })} />
+                    </div>
+                )}
             </div>
         )}
       </div>
@@ -541,7 +563,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
       {/* Media Display */}
       {post.mediaUrls && post.mediaUrls.length > 0 && (
         <div className="mt-1 mb-4 px-0 sm:px-2">
-            <ImageGrid images={post.mediaUrls} onImageClick={index => setLightboxState({ isOpen: true, startIndex: index })} />
+            <ImageGrid images={post.mediaUrls} onImageClick={index => setLightboxState({ isOpen: true, startIndex: index, images: post.mediaUrls })} />
         </div>
       )}
 
@@ -619,11 +641,11 @@ const PostCard: React.FC<PostCardProps> = (props) => {
         defaultTab={shareModalState.defaultTab}
       />
       {isReactionsModalOpen && <ReactionsModal isOpen={isReactionsModalOpen} onClose={() => setIsReactionsModalOpen(false)} reactions={post.reactions} users={users} onNavigate={onNavigate} />}
-      {lightboxState.isOpen && post.mediaUrls && (
+      {lightboxState.isOpen && lightboxState.images && (
         <Lightbox
-            images={post.mediaUrls}
+            images={lightboxState.images}
             startIndex={lightboxState.startIndex}
-            onClose={() => setLightboxState({ isOpen: false, startIndex: 0 })}
+            onClose={() => setLightboxState({ isOpen: false, startIndex: 0, images: undefined })}
         />
       )}
     </div>

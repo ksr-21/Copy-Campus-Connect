@@ -11,10 +11,11 @@ interface CreatePostModalProps {
     content: string;
     mediaDataUrls?: string[] | null;
     mediaType?: 'image' | 'video' | null;
+    isEvent?: boolean;
     eventDetails?: { title: string; date: string; location: string; link?: string; };
     groupId?: string;
     isConfession?: boolean;
-  }) => void;
+  }) => Promise<any>;
   defaultType?: 'post' | 'event';
   groupId?: string;
 }

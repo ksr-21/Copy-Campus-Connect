@@ -30,7 +30,7 @@ const App = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [backendStatus, setBackendStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
-  const [currentPath, setCurrentPath] = useState('#/');
+  const [currentPath, setCurrentPath] = useState(window.location.hash || '#/');
 
   // Data State
   const [users, setUsers] = useState<{ [key: string]: User }>({});
@@ -62,13 +62,15 @@ const App = () => {
 
         try {
             const data = await api.get('/auth/users', token);
-            const usersData: { [key: string]: User } = {};
+            const usersData: { [key: string]: User } = { [currentUser.id]: currentUser };
             data.forEach((u: any) => {
                 usersData[u._id] = { ...u, id: u._id };
             });
             setUsers(usersData);
         } catch (err) {
             console.error("Failed to fetch users", err);
+            // Ensure currentUser is always in users map even if fetch fails
+            setUsers(prev => ({ ...prev, [currentUser.id]: currentUser }));
         }
 
         try {
@@ -205,7 +207,9 @@ const App = () => {
                     // Fetch fresh profile from MongoDB to ensure token and data are valid
                     try {
                         const userData = await api.get('/auth/me', storedUser.token);
-                        setCurrentUser({ ...userData, id: userData._id, token: storedUser.token });
+                        const user = { ...userData, id: userData._id, token: storedUser.token };
+                        setCurrentUser(user);
+                        setUsers(prev => ({ ...prev, [user.id]: user }));
                     } catch (err) {
                         console.error("Session verification failed", err);
                         // If token is invalid/expired, clear session
@@ -269,6 +273,7 @@ const App = () => {
 
           const newPost = await api.post('/posts', payload, currentUser.token);
           setPosts(prev => [{ ...newPost, id: newPost._id }, ...prev]);
+          return newPost;
       } catch (err: any) {
           console.error("Failed to add post", err);
       }
@@ -331,9 +336,14 @@ const App = () => {
 
   const handleSharePost = async (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group', id?: string }) => {
       if (!currentUser) return;
+
+      const authorIdToSave = typeof originalPost.authorId === 'object'
+        ? (originalPost.authorId as any)._id || (originalPost.authorId as any).id
+        : originalPost.authorId;
+
       const sharedPostInfo = {
           originalId: originalPost.id,
-          originalAuthorId: originalPost.authorId,
+          originalAuthorId: authorIdToSave,
           originalTimestamp: originalPost.timestamp,
           originalContent: originalPost.content,
           originalMediaUrls: originalPost.mediaUrls,
