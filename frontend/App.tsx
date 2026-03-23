@@ -246,6 +246,20 @@ const App = () => {
     return () => clearInterval(interval);
   }, [currentUser]);
 
+  // Utility to convert dataURL to Blob for robust Firebase uploads
+  const dataURLtoBlob = (dataurl: string) => {
+      const arr = dataurl.split(',');
+      const mimeMatch = arr[0].match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new Blob([u8arr], { type: mime });
+  };
+
   // Posts Handlers (MongoDB Backend)
   const handleAddPost = async (postDetails: any) => {
       if (!currentUser) return;
@@ -254,14 +268,22 @@ const App = () => {
           const { mediaDataUrls, ...rest } = postDetails;
           const uploadedUrls: string[] = [];
 
-          if (mediaDataUrls && mediaDataUrls.length > 0 && storage) {
+          if (mediaDataUrls && mediaDataUrls.length > 0) {
+              if (!storage) {
+                  throw new Error("Cloud storage is unavailable. Please check your configuration.");
+              }
               for (let i = 0; i < mediaDataUrls.length; i++) {
-                  const dataUrl = mediaDataUrls[i];
-                  const blob = await (await fetch(dataUrl)).blob();
-                  const fileRef = storage.ref().child(`posts/${currentUser.id}/${Date.now()}_${i}`);
-                  const snapshot = await fileRef.put(blob);
-                  const url = await snapshot.ref.getDownloadURL();
-                  uploadedUrls.push(url);
+                  try {
+                      const dataUrl = mediaDataUrls[i];
+                      const blob = dataURLtoBlob(dataUrl);
+                      const fileRef = storage.ref().child(`posts/${currentUser.id}/${Date.now()}_${i}`);
+                      const snapshot = await fileRef.put(blob);
+                      const url = await snapshot.ref.getDownloadURL();
+                      uploadedUrls.push(url);
+                  } catch (uploadErr) {
+                      console.error(`Failed to upload media item ${i}:`, uploadErr);
+                      throw new Error("One or more images failed to upload. Please try again.");
+                  }
               }
           }
 
@@ -275,7 +297,8 @@ const App = () => {
           setPosts(prev => [{ ...newPost, id: newPost._id }, ...prev]);
           return newPost;
       } catch (err: any) {
-          console.error("Failed to add post", err);
+          console.error("Failed to add post:", err);
+          throw err; // Rethrow to allow UI (CreatePost) to handle/alert
       }
   };
 
@@ -379,8 +402,9 @@ const App = () => {
           const { mediaDataUrl, ...rest } = storyDetails;
           let mediaUrl = undefined;
 
-          if (mediaDataUrl && storage) {
-              const blob = await (await fetch(mediaDataUrl)).blob();
+          if (mediaDataUrl) {
+              if (!storage) throw new Error("Cloud storage is unavailable.");
+              const blob = dataURLtoBlob(mediaDataUrl);
               const fileRef = storage.ref().child(`stories/${currentUser.id}/${Date.now()}`);
               const snapshot = await fileRef.put(blob);
               mediaUrl = await snapshot.ref.getDownloadURL();
@@ -393,7 +417,8 @@ const App = () => {
           }, currentUser.token);
           setStories(prev => [{ ...newStory, id: newStory._id }, ...prev]);
       } catch (err: any) {
-          console.error("Failed to add story", err);
+          console.error("Failed to add story:", err);
+          throw err;
       }
   };
 
@@ -442,8 +467,9 @@ const App = () => {
       if (!currentUser) return;
       try {
           let mediaUrl = undefined;
-          if (mediaDataUrl && storage) {
-              const blob = await (await fetch(mediaDataUrl)).blob();
+          if (mediaDataUrl) {
+              if (!storage) throw new Error("Cloud storage is unavailable.");
+              const blob = dataURLtoBlob(mediaDataUrl);
               const fileRef = storage.ref().child(`chats/${conversationId}/${Date.now()}`);
               const snapshot = await fileRef.put(blob);
               mediaUrl = await snapshot.ref.getDownloadURL();
@@ -452,7 +478,8 @@ const App = () => {
           const newMessage = await api.post(`/conversations/${conversationId}/messages`, { text, mediaUrl, mediaType }, currentUser.token);
           setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, messages: [...c.messages, newMessage] } : c));
       } catch (err: any) {
-          console.error("Failed to send message", err);
+          console.error("Failed to send message:", err);
+          throw err;
       }
   };
 
@@ -577,8 +604,9 @@ const App = () => {
       if (!currentUser) return;
       try {
           let mediaUrl = undefined;
-          if (mediaDataUrl && storage) {
-              const blob = await (await fetch(mediaDataUrl)).blob();
+          if (mediaDataUrl) {
+              if (!storage) throw new Error("Cloud storage is unavailable.");
+              const blob = dataURLtoBlob(mediaDataUrl);
               const fileRef = storage.ref().child(`groups/${groupId}/chats/${Date.now()}`);
               const snapshot = await fileRef.put(blob);
               mediaUrl = await snapshot.ref.getDownloadURL();
@@ -587,7 +615,8 @@ const App = () => {
           const messages = await api.post(`/groups/${groupId}/messages`, { text, mediaUrl, mediaType }, currentUser.token);
           setGroups(prev => prev.map(g => g.id === groupId ? { ...g, messages } : g));
       } catch (err: any) {
-          console.error("Failed to send group message", err);
+          console.error("Failed to send group message:", err);
+          throw err;
       }
   };
 
@@ -706,8 +735,9 @@ const App = () => {
       try {
           const { mediaDataUrl, ...rest } = noticeData;
           let mediaUrl = undefined;
-          if (mediaDataUrl && storage) {
-              const blob = await (await fetch(mediaDataUrl)).blob();
+          if (mediaDataUrl) {
+              if (!storage) throw new Error("Cloud storage is unavailable.");
+              const blob = dataURLtoBlob(mediaDataUrl);
               const fileRef = storage.ref().child(`notices/${currentUser.id}/${Date.now()}`);
               const snapshot = await fileRef.put(blob);
               mediaUrl = await snapshot.ref.getDownloadURL();
@@ -720,7 +750,8 @@ const App = () => {
           }, currentUser.token);
           setNotices(prev => [{ ...newNotice, id: newNotice._id }, ...prev]);
       } catch (err: any) {
-          console.error("Failed to create notice", err);
+          console.error("Failed to create notice:", err);
+          throw err;
       }
   };
 
@@ -829,7 +860,7 @@ const App = () => {
               email: email.toLowerCase(),
               name: 'Director (Pending)',
               tag: 'Director',
-              password: password,
+              password: password || 'temporaryPassword123',
               isApproved: true,
               requestedCollegeName: collegeName
           }, currentUser.token);
@@ -995,8 +1026,9 @@ const App = () => {
       if (!currentUser) return;
       try {
           let mediaUrl = undefined;
-          if (mediaDataUrl && storage) {
-              const blob = await (await fetch(mediaDataUrl)).blob();
+          if (mediaDataUrl) {
+              if (!storage) throw new Error("Cloud storage is unavailable.");
+              const blob = dataURLtoBlob(mediaDataUrl);
               const fileRef = storage.ref().child(`courses/${courseId}/chats/${Date.now()}`);
               const snapshot = await fileRef.put(blob);
               mediaUrl = await snapshot.ref.getDownloadURL();
@@ -1005,7 +1037,8 @@ const App = () => {
           const messages = await api.post(`/courses/${courseId}/messages`, { text, mediaUrl, mediaType }, currentUser.token);
           setCourses(prev => prev.map(c => c.id === courseId ? { ...c, messages } : c));
       } catch (err: any) {
-          console.error("Failed to send course message", err);
+          console.error("Failed to send course message:", err);
+          throw err;
       }
   };
 
@@ -1013,8 +1046,9 @@ const App = () => {
       if (!currentUser) return;
       try {
           let mediaUrl = undefined;
-          if (mediaDataUrl && storage) {
-              const blob = await (await fetch(mediaDataUrl)).blob();
+          if (mediaDataUrl) {
+              if (!storage) throw new Error("Cloud storage is unavailable.");
+              const blob = dataURLtoBlob(mediaDataUrl);
               const fileRef = storage.ref().child(`department-chats/${currentUser.collegeId}/${department}/${Date.now()}`);
               const snapshot = await fileRef.put(blob);
               mediaUrl = await snapshot.ref.getDownloadURL();

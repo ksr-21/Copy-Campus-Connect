@@ -35,7 +35,7 @@ const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ colleges, users, onCrea
     setError('');
     setIsLoading(true);
     try {
-      await onCreateCollegeAdmin(collegeName, adminEmail, '');
+      await onCreateCollegeAdmin(collegeName, adminEmail, 'temporaryPassword123');
       setCollegeName('');
       setAdminEmail('');
       setIsAddModalOpen(false);
