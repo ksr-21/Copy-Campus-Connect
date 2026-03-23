@@ -449,8 +449,10 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
         }
     };
 
-    const openCreateStaffModal = (role: 'HOD' | 'Faculty') => {
-        setStaffModalRole(role === 'HOD' ? { label: 'HOD', tag: 'HOD/Dean' } : { label: 'Faculty', tag: 'Teacher' });
+    const openCreateStaffModal = (role: 'HOD' | 'Faculty' | 'Student') => {
+        if (role === 'HOD') setStaffModalRole({ label: 'HOD', tag: 'HOD/Dean' });
+        else if (role === 'Faculty') setStaffModalRole({ label: 'Faculty', tag: 'Teacher' });
+        else setStaffModalRole({ label: 'Student', tag: 'Student' });
         setIsStaffModalOpen(true);
     };
 
@@ -612,7 +614,15 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
 
                     {activeSection === 'students' && (
                         <div className="space-y-6 animate-fade-in">
-                            <h2 className="text-2xl font-bold text-foreground">Students Directory</h2>
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-2xl font-bold text-foreground">Students Directory</h2>
+                                <button
+                                    onClick={() => openCreateStaffModal('Student')}
+                                    className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90"
+                                >
+                                    <PlusIcon className="w-4 h-4"/> Invite Student
+                                </button>
+                            </div>
                             <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-left">

@@ -21,6 +21,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+
 // Routes
 app.get('/api/health', (req, res) => {
     const mongoose = require('mongoose');
