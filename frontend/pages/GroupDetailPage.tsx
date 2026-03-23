@@ -25,7 +25,7 @@ interface GroupDetailPageProps {
   groups: Group[]; // For consistency with feed props
   onNavigate: (path: string) => void;
   currentPath: string;
-  onAddPost: (postDetails: any) => void;
+  onAddPost: (postDetails: any) => Promise<any>;
   onAddStory: (storyDetails: any) => void;
   // postCardProps
   onReaction: (postId: string, reaction: ReactionType) => void;

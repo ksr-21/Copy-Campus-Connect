@@ -260,6 +260,13 @@ export type Feedback = {
     timestamp: number;
 }
 
+export type TimetableSlot = {
+    day: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
+    startTime: string; // e.g. "09:00"
+    endTime: string;   // e.g. "10:00"
+    room: string;
+};
+
 export type Course = {
     id: string;
     subject: string;
@@ -269,6 +276,7 @@ export type Course = {
     facultyId: string; // Added to identify the instructor
     collegeId?: string;
     description?: string;
+    slots?: TimetableSlot[]; // Added for Timetable
     notes?: Note[];
     assignments?: Assignment[];
     attendanceRecords?: AttendanceRecord[];

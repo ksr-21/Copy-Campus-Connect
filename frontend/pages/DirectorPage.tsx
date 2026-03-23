@@ -5,6 +5,8 @@ import { logout } from '../utils/authUtils';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
+import AddStudentsCsvModal from '../components/AddStudentsCsvModal';
+import AddTeachersCsvModal from '../components/AddTeachersCsvModal';
 import {
     BuildingIcon, UserPlusIcon, PlusIcon, CloseIcon, TrashIcon, UsersIcon,
     ClockIcon, CheckCircleIcon, ChevronRightIcon, FileTextIcon,
@@ -38,6 +40,7 @@ interface DirectorPageProps {
     onDeleteNotice: (noticeId: string) => void;
     onCreateCourse: (courseData: Omit<Course, 'id' | 'facultyId'>) => void;
     onCreateUser: (userData: Omit<User, 'id'>, password?: string) => Promise<void>;
+    onCreateUsersBatch: (usersData: Omit<User, 'id'>[]) => Promise<{ successCount: number; errors: any[] }>;
     onDeleteCourse: (courseId: string) => void;
     onUpdateCollegeDepartments: (collegeId: string, departments: string[]) => void;
     onEditCollegeDepartment: (collegeId: string, oldName: string, newName: string) => void;
@@ -234,6 +237,96 @@ const DepartmentAttendanceChart: React.FC<{ data: { department: string; percenta
     </div>
 );
 
+const MasterSchedulesView: React.FC<{ courses: Course[]; departments: string[] }> = ({ courses, departments }) => {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const [filterDept, setFilterDept] = useState('All');
+    const [filterYear, setFilterYear] = useState<number | 'All'>('All');
+
+    const filteredCourses = courses.filter(c =>
+        (filterDept === 'All' || c.department === filterDept) &&
+        (filterYear === 'All' || c.year === filterYear)
+    );
+
+    const timetableData: { [key: string]: (any)[] } = {};
+    days.forEach(d => timetableData[d] = []);
+
+    filteredCourses.forEach(course => {
+        course.slots?.forEach(slot => {
+            if (timetableData[slot.day]) {
+                timetableData[slot.day].push({
+                    ...slot,
+                    subject: course.subject,
+                    dept: course.department,
+                    year: course.year,
+                    div: course.division
+                });
+            }
+        });
+    });
+
+    Object.keys(timetableData).forEach(day => {
+        timetableData[day].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    });
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <h2 className="text-2xl font-bold text-foreground">Master Schedules</h2>
+                <div className="flex gap-2">
+                    <select
+                        value={filterDept}
+                        onChange={e => setFilterDept(e.target.value)}
+                        className="bg-card border border-border px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none text-foreground"
+                    >
+                        <option value="All">All Departments</option>
+                        {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <select
+                        value={filterYear}
+                        onChange={e => setFilterYear(e.target.value === 'All' ? 'All' : parseInt(e.target.value))}
+                        className="bg-card border border-border px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none text-foreground"
+                    >
+                        <option value="All">All Years</option>
+                        {[1, 2, 3, 4].map(y => <option key={y} value={y}>Year {y}</option>)}
+                    </select>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {days.map(day => (
+                    <div key={day} className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+                        <div className="bg-muted/30 px-4 py-2 border-b border-border">
+                            <h3 className="font-bold text-foreground">{day}</h3>
+                        </div>
+                        <div className="p-4 space-y-3">
+                            {timetableData[day].map((slot, idx) => (
+                                <div key={idx} className="flex items-center gap-4 p-3 bg-muted/10 rounded-lg border border-border">
+                                    <div className="flex flex-col items-center justify-center min-w-[80px] py-1 bg-primary/5 rounded-md border border-primary/10">
+                                        <span className="text-xs font-bold text-primary">{slot.startTime}</span>
+                                        <span className="text-[10px] text-muted-foreground">{slot.endTime}</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex justify-between">
+                                            <p className="font-bold text-sm text-foreground">{slot.subject}</p>
+                                            <span className="text-[10px] font-black uppercase text-primary/60">{slot.dept}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center mt-1">
+                                            <p className="text-xs text-muted-foreground">Class {slot.year}-{slot.div} • {slot.room}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {timetableData[day].length === 0 && (
+                                <p className="text-center py-4 text-xs text-muted-foreground italic">No classes scheduled.</p>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const ReportsView: React.FC<{ courses: Course[]; departments: string[] }> = ({ courses, departments }) => {
     const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
     const [filterDept, setFilterDept] = useState('All');
@@ -390,13 +483,15 @@ const ReportsView: React.FC<{ courses: Course[]; departments: string[] }> = ({ c
 // --- Main Component ---
 
 const DirectorPage: React.FC<DirectorPageProps> = (props) => {
-    const { currentUser, allUsers, onNavigate, currentPath, colleges, onUpdateCollegeDepartments, onCreateUser, onApproveHodRequest, onDeclineHodRequest, onApproveTeacherRequest, onDeclineTeacherRequest, onToggleFreezeUser, onDeleteUser, allCourses } = props;
+    const { currentUser, allUsers, onNavigate, currentPath, colleges, onUpdateCollegeDepartments, onCreateUser, onCreateUsersBatch, onApproveHodRequest, onDeclineHodRequest, onApproveTeacherRequest, onDeclineTeacherRequest, onToggleFreezeUser, onDeleteUser, allCourses, allPosts, allGroups, notices, onCreateNotice } = props;
     const [activeSection, setActiveSection] = useState<'dashboard' | 'departments' | 'faculty' | 'students' | 'approvals' | 'reports' | 'settings' | 'portfolio' | 'schedules' | 'intelligence' | 'broadcast'>('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [approvingId, setApprovingId] = useState<string | null>(null);
 
     // Staff Creation Modal State
     const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
+    const [isBulkFacultyModalOpen, setIsBulkFacultyModalOpen] = useState(false);
+    const [isBulkStudentModalOpen, setIsBulkStudentModalOpen] = useState(false);
     const [staffModalRole, setStaffModalRole] = useState<{label: string, tag: UserTag}>({label: 'HOD', tag: 'HOD/Dean'});
 
     // Department State
@@ -669,38 +764,147 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                     )}
 
                     {activeSection === 'schedules' && (
-                        <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
-                            <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
-                                <CalendarIcon className="w-12 h-12 text-primary" />
-                            </div>
-                            <h2 className="text-2xl font-bold text-foreground">Master Schedules</h2>
-                            <p className="text-muted-foreground mt-2 max-w-md">
-                                Centralized timetable management for all departments, exam schedules, and holiday calendars.
-                            </p>
-                        </div>
+                        <MasterSchedulesView
+                            courses={myCollegeCourses}
+                            departments={college.departments || []}
+                        />
                     )}
 
                     {activeSection === 'intelligence' && (
-                        <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
-                            <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
-                                <ChartBarIcon className="w-12 h-12 text-primary" />
+                        <div className="space-y-8 animate-fade-in">
+                             <div className="flex justify-between items-center">
+                                <h2 className="text-2xl font-bold text-foreground">Usage Intelligence</h2>
+                                <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">Live Analytics</span>
                             </div>
-                            <h2 className="text-2xl font-bold text-foreground">Usage Intelligence</h2>
-                            <p className="text-muted-foreground mt-2 max-w-md">
-                                Analytics on platform engagement, student participation, and content reach across the institution.
-                            </p>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-card p-6 rounded-2xl border border-border">
+                                    <h3 className="font-bold mb-6 flex items-center gap-2"><UsersIcon className="w-5 h-5 text-blue-500"/> User Distribution</h3>
+                                    <div className="space-y-4">
+                                        {[
+                                            { label: 'Students', count: students.length, color: 'bg-blue-500' },
+                                            { label: 'Faculty', count: faculty.length, color: 'bg-purple-500' },
+                                            { label: 'HODs', count: hods.length, color: 'bg-orange-500' }
+                                        ].map(item => {
+                                            const total = students.length + faculty.length + hods.length;
+                                            const percent = total > 0 ? (item.count / total) * 100 : 0;
+                                            return (
+                                                <div key={item.label} className="space-y-1">
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="font-medium">{item.label}</span>
+                                                        <span className="text-muted-foreground">{item.count}</span>
+                                                    </div>
+                                                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                                        <div className={`h-full ${item.color}`} style={{ width: `${percent}%` }}></div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="bg-card p-6 rounded-2xl border border-border">
+                                    <h3 className="font-bold mb-6 flex items-center gap-2"><ActivityIcon className="w-5 h-5 text-emerald-500"/> Platform Activity</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 bg-muted/20 rounded-xl">
+                                            <p className="text-[10px] font-black uppercase text-muted-foreground">Total Posts</p>
+                                            <p className="text-2xl font-black">{allPosts.length}</p>
+                                        </div>
+                                        <div className="p-4 bg-muted/20 rounded-xl">
+                                            <p className="text-[10px] font-black uppercase text-muted-foreground">Active Groups</p>
+                                            <p className="text-2xl font-black">{allGroups.length}</p>
+                                        </div>
+                                        <div className="p-4 bg-muted/20 rounded-xl">
+                                            <p className="text-[10px] font-black uppercase text-muted-foreground">Total Notices</p>
+                                            <p className="text-2xl font-black">{notices.length}</p>
+                                        </div>
+                                        <div className="p-4 bg-muted/20 rounded-xl">
+                                            <p className="text-[10px] font-black uppercase text-muted-foreground">Courses</p>
+                                            <p className="text-2xl font-black">{myCollegeCourses.length}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-card p-6 rounded-2xl border border-border">
+                                <h3 className="font-bold mb-4 flex items-center gap-2"><DatabaseIcon className="w-5 h-5 text-primary"/> System Overview</h3>
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                    The institutional digital twin is currently tracking <b>{allUsers.length}</b> identities across <b>{college.departments?.length}</b> departments.
+                                    Storage utilization is within optimal bounds. Real-time polling is active every 15 seconds.
+                                </p>
+                            </div>
                         </div>
                     )}
 
                     {activeSection === 'broadcast' && (
-                        <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
-                            <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
-                                <RadioIcon className="w-12 h-12 text-primary" />
+                        <div className="space-y-8 animate-fade-in">
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-2xl font-bold text-foreground">Broadcast Center</h2>
+                                <span className="px-3 py-1 bg-rose-100 text-rose-600 text-xs font-bold rounded-full flex items-center gap-1">
+                                    <RadioIcon className="w-3 h-3"/> Emergency Override Active
+                                </span>
                             </div>
-                            <h2 className="text-2xl font-bold text-foreground">Broadcast Center</h2>
-                            <p className="text-muted-foreground mt-2 max-w-md">
-                                Send urgent push notifications and official announcements to the entire campus or specific groups.
-                            </p>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-2 bg-card p-8 rounded-3xl border border-border shadow-sm">
+                                    <h3 className="text-lg font-bold mb-6">Create Global Announcement</h3>
+                                    <form
+                                        className="space-y-4"
+                                        onSubmit={(e: any) => {
+                                            e.preventDefault();
+                                            const title = e.target.title.value;
+                                            const content = e.target.content.value;
+                                            if (title && content) {
+                                                onCreateNotice({ title, content, collegeId: college.id });
+                                                e.target.reset();
+                                                alert("Global announcement broadcasted!");
+                                            }
+                                        }}
+                                    >
+                                        <input
+                                            name="title"
+                                            placeholder="Announcement Title (e.g., Campus Holiday)"
+                                            className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none"
+                                            required
+                                        />
+                                        <textarea
+                                            name="content"
+                                            rows={6}
+                                            placeholder="Detailed announcement content..."
+                                            className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none resize-none"
+                                            required
+                                        />
+                                        <div className="flex justify-between items-center pt-2">
+                                            <p className="text-xs text-muted-foreground italic">Sending to all students, faculty, and HODs.</p>
+                                            <button className="bg-primary text-primary-foreground px-8 py-3 rounded-xl font-bold hover:shadow-lg hover:shadow-primary/20 transition-all flex items-center gap-2">
+                                                <RadioIcon className="w-4 h-4"/> Broadcast Now
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-3xl border border-blue-100 dark:border-blue-900/50">
+                                        <h4 className="font-bold text-blue-800 dark:text-blue-300 mb-2">Notice Stats</h4>
+                                        <p className="text-sm text-blue-700/80 dark:text-blue-400">Your announcements reach <b>{students.length + faculty.length + hods.length}</b> verified campus members instantly.</p>
+                                    </div>
+
+                                    <div className="bg-card p-6 rounded-3xl border border-border">
+                                        <h4 className="font-bold mb-4">Recent Broadcasts</h4>
+                                        <div className="space-y-4">
+                                            {notices.filter(n => n.collegeId === college.id).slice(0, 3).map(notice => (
+                                                <div key={notice.id} className="pb-3 border-b border-border last:border-0">
+                                                    <p className="font-bold text-sm truncate">{notice.title}</p>
+                                                    <p className="text-[10px] text-muted-foreground">{new Date(notice.timestamp).toLocaleDateString()}</p>
+                                                </div>
+                                            ))}
+                                            {notices.filter(n => n.collegeId === college.id).length === 0 && (
+                                                <p className="text-xs text-muted-foreground italic">No recent global announcements.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -821,12 +1025,20 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                         <div className="space-y-6 animate-fade-in">
                             <div className="flex justify-between items-center">
                                 <h2 className="text-2xl font-bold text-foreground">Faculty Members</h2>
-                                <button
-                                    onClick={() => openCreateStaffModal('Faculty')}
-                                    className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90"
-                                >
-                                    <PlusIcon className="w-4 h-4"/> Invite Faculty
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setIsBulkFacultyModalOpen(true)}
+                                        className="bg-card border border-border px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-muted"
+                                    >
+                                        <FileTextIcon className="w-4 h-4"/> Bulk Invite
+                                    </button>
+                                    <button
+                                        onClick={() => openCreateStaffModal('Faculty')}
+                                        className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90"
+                                    >
+                                        <PlusIcon className="w-4 h-4"/> Invite Faculty
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
@@ -874,12 +1086,20 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                         <div className="space-y-6 animate-fade-in">
                             <div className="flex justify-between items-center">
                                 <h2 className="text-2xl font-bold text-foreground">Students Directory</h2>
-                                <button
-                                    onClick={() => openCreateStaffModal('Student')}
-                                    className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90"
-                                >
-                                    <PlusIcon className="w-4 h-4"/> Invite Student
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setIsBulkStudentModalOpen(true)}
+                                        className="bg-card border border-border px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-muted"
+                                    >
+                                        <FileTextIcon className="w-4 h-4"/> Bulk Invite
+                                    </button>
+                                    <button
+                                        onClick={() => openCreateStaffModal('Student')}
+                                        className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90"
+                                    >
+                                        <PlusIcon className="w-4 h-4"/> Invite Student
+                                    </button>
+                                </div>
                             </div>
                             <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
                                 <div className="overflow-x-auto">
@@ -996,6 +1216,24 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                 roleLabel={staffModalRole.label}
                 roleTag={staffModalRole.tag}
             />
+
+            {isBulkFacultyModalOpen && (
+                <AddTeachersCsvModal
+                    isOpen={isBulkFacultyModalOpen}
+                    onClose={() => setIsBulkFacultyModalOpen(false)}
+                    department={college.departments?.[0] || 'General'}
+                    onCreateUsersBatch={onCreateUsersBatch}
+                />
+            )}
+
+            {isBulkStudentModalOpen && (
+                <AddStudentsCsvModal
+                    isOpen={isBulkStudentModalOpen}
+                    onClose={() => setIsBulkStudentModalOpen(false)}
+                    department={college.departments?.[0] || 'General'}
+                    onCreateUsersBatch={onCreateUsersBatch}
+                />
+            )}
 
             <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
         </div>

@@ -15,7 +15,7 @@ interface EventsPageProps {
   groups: Group[];
   onNavigate: (path: string) => void;
   currentPath: string;
-  onAddPost: (postDetails: any) => void;
+  onAddPost: (postDetails: any) => Promise<any>;
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;

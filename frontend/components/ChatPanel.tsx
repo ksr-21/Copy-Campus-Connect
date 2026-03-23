@@ -205,11 +205,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
                         <UsersIcon className="w-6 h-6"/>
                     </div>
                 ) : (
-                    <div className="cursor-pointer flex-shrink-0" onClick={() => onNavigate(`#/profile/${otherUser.id}`)}>
-                        <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
-                    </div>
+                    otherUser && (
+                        <div className="cursor-pointer flex-shrink-0" onClick={() => onNavigate(`#/profile/${otherUser.id}`)}>
+                            <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
+                        </div>
+                    )
                 )}
-                <div className={!isGroupChat && otherUser ? "cursor-pointer flex-1 overflow-hidden" : "flex-1 overflow-hidden"} onClick={!isGroupChat && otherUser ? () => onNavigate(`#/profile/${otherUser.id}`) : undefined}>
+                <div className={!isGroupChat && otherUser ? "cursor-pointer flex-1 overflow-hidden" : "flex-1 overflow-hidden"} onClick={(!isGroupChat && otherUser) ? () => onNavigate(`#/profile/${otherUser.id}`) : undefined}>
                     <p className="font-bold text-foreground truncate">{chatName}</p>
                     {isGroupChat ? (
                          <p className="text-xs text-muted-foreground">{conversation.participantIds.length} members</p>

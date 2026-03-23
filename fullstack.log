@@ -1,0 +1,69 @@
+
+> campus-connect-backend@1.0.0 fullstack
+> npm run dev & npm run frontend
+
+
+> campus-connect-backend@1.0.0 dev
+> nodemon server.js
+
+
+> campus-connect-backend@1.0.0 frontend
+> cd frontend && npm run dev
+
+[33m[nodemon] 3.1.14[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node server.js`[39m
+
+> campusconnect@0.0.0 dev
+> vite
+
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+
+  VITE v4.5.14  ready in 340 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node server.js`[39m
+Server started on port 5000
+(node:13706) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Database Connection Error: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017
+Local MongoDB not found. Starting in-memory MongoDB fallback...
+In-memory MongoDB started at: mongodb://127.0.0.1:43047/
+JsonWebTokenError: jwt malformed
+    at module.exports [as verify] (/app/node_modules/jsonwebtoken/verify.js:70:17)
+    at protect (/app/middleware/auth.js:10:27)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Function.handle (/app/node_modules/express/lib/router/index.js:175:3)
+JsonWebTokenError: jwt malformed
+    at module.exports [as verify] (/app/node_modules/jsonwebtoken/verify.js:70:17)
+    at protect (/app/middleware/auth.js:10:27)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Function.handle (/app/node_modules/express/lib/router/index.js:175:3)
+JsonWebTokenError: jwt malformed
+    at module.exports [as verify] (/app/node_modules/jsonwebtoken/verify.js:70:17)
+    at protect (/app/middleware/auth.js:10:27)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Function.handle (/app/node_modules/express/lib/router/index.js:175:3)

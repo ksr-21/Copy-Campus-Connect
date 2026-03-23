@@ -15,7 +15,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["@capacitor/cli", "@capacitor/core"]
+    "types": ["@capacitor/cli", "@capacitor/core", "vite/client"]
   },
   "include": ["."]
 }

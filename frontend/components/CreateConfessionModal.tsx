@@ -37,7 +37,7 @@ const CreateConfessionModal: React.FC<CreateConfessionModalProps> = ({ isOpen, o
 
   if (!isOpen) return null;
 
-  const applyStyle = (command: string, value: string | null = null) => {
+  const applyStyle = (command: string, value: string | undefined = undefined) => {
     document.execCommand(command, false, value);
     editorRef.current?.focus();
   };
