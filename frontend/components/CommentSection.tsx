@@ -44,9 +44,11 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments, users, curren
       {/* Comment List */}
       <div className="space-y-4">
         {comments.sort((a,b) => a.timestamp - b.timestamp).map((comment) => {
-          const author = comment.authorId && typeof comment.authorId === 'object'
-            ? (comment.authorId as unknown as User)
+          let author = comment.authorId && typeof comment.authorId === 'object'
+            ? (comment.authorId as unknown as any)
             : users[comment.authorId as string];
+
+          if (author && author._id && !author.id) author = { ...author, id: author._id, avatarUrl: author.profilePicture || author.avatarUrl };
 
           if (!author) return null;
           const authorId = typeof comment.authorId === 'string' ? comment.authorId : author.id;

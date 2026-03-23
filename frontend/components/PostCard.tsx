@@ -212,7 +212,8 @@ const PostCard: React.FC<PostCardProps> = (props) => {
 
 
   // Handle both flat author (prop) and populated authorId (from backend)
-  const author = post.authorId && typeof post.authorId === 'object' ? (post.authorId as unknown as User) : authorProp;
+  let author = post.authorId && typeof post.authorId === 'object' ? (post.authorId as unknown as any) : authorProp;
+  if (author && author._id && !author.id) author = { ...author, id: author._id, avatarUrl: author.profilePicture || author.avatarUrl };
 
   if (!author && !post.isConfession) return null;
 

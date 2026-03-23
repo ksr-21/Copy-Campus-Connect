@@ -33,9 +33,13 @@ const EventDetailPage: React.FC<EventDetailPageProps> = ({ eventId, posts, users
         return <div className="min-h-screen flex items-center justify-center">Event not found</div>;
     }
 
-    const { eventDetails, authorId } = event;
+    const { eventDetails, authorId: rawAuthorId } = event;
+    const authorId = (rawAuthorId && typeof rawAuthorId === 'object') ? (rawAuthorId as any)._id : rawAuthorId;
     const organizer = users[authorId];
-    const attendeesList = useMemo(() => (eventDetails.attendees || []).map(uid => users[uid]).filter(Boolean), [eventDetails.attendees, users]);
+    const attendeesList = useMemo(() => (eventDetails.attendees || []).map(uid => {
+        const attendeeId = (uid && typeof uid === 'object') ? (uid as any)._id : uid;
+        return users[attendeeId];
+    }).filter(Boolean), [eventDetails.attendees, users]);
     const isRegistered = (eventDetails.attendees || []).includes(currentUser.id);
     const isPast = new Date(eventDetails.date) < new Date();
 

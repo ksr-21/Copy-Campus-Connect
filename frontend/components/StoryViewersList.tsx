@@ -21,7 +21,8 @@ const StoryViewersList: React.FC<StoryViewersListProps> = ({ viewedBy, users, on
         </div>
         <div className="flex-1 overflow-y-auto no-scrollbar p-2">
           {viewedBy.length > 0 ? (
-            viewedBy.map(userId => {
+            viewedBy.map(uid => {
+              const userId = (uid && typeof uid === 'object') ? (uid as any)._id : uid;
               const user = users[userId];
               if (!user) return null;
               return (

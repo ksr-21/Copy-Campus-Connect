@@ -38,7 +38,8 @@ const Feed: React.FC<FeedProps> = (props) => {
   return (
     <div className="space-y-6 pb-8">
       {posts.map((post, index) => {
-          const author = users[post.authorId];
+          const authorId = (post.authorId && typeof post.authorId === 'object') ? (post.authorId as any)._id : post.authorId;
+          const author = users[authorId];
           // Don't render post if author data is not yet available (unless it's a confession)
           if (!author && !post.isConfession) return null;
           return (
