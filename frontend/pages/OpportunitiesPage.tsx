@@ -119,15 +119,18 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = ({ currentUser, user
                               </div>
 
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                  {jobListings.length > 0 ? jobListings.map(opp => (
-                                      <OpportunityCard
-                                          key={opp.id}
-                                          opportunity={opp}
-                                          author={users[opp.authorId]}
-                                          currentUser={currentUser}
-                                          onDeleteOpportunity={postCardProps.onDeletePost}
-                                      />
-                                  )) : (
+                                  {jobListings.length > 0 ? jobListings.map(opp => {
+                                      const authorId = (opp.authorId && typeof opp.authorId === 'object') ? (opp.authorId as any)._id : opp.authorId;
+                                      return (
+                                          <OpportunityCard
+                                              key={opp.id}
+                                              opportunity={opp}
+                                              author={users[authorId]}
+                                              currentUser={currentUser}
+                                              onDeleteOpportunity={postCardProps.onDeletePost}
+                                          />
+                                      );
+                                  }) : (
                                       <div className="col-span-full text-center py-20 bg-card/50 rounded-3xl border-2 border-dashed border-border">
                                           <BriefcaseIcon className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4"/>
                                           <h3 className="text-lg font-bold text-foreground">No listings found</h3>
@@ -150,15 +153,18 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = ({ currentUser, user
                                   </button>
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                  {campusListings.map(opp => (
-                                      <OpportunityCard
-                                          key={opp.id}
-                                          opportunity={opp}
-                                          author={users[opp.authorId]}
-                                          currentUser={currentUser}
-                                          onDeleteOpportunity={postCardProps.onDeletePost}
-                                      />
-                                  ))}
+                                  {campusListings.map(opp => {
+                                      const authorId = (opp.authorId && typeof opp.authorId === 'object') ? (opp.authorId as any)._id : opp.authorId;
+                                      return (
+                                          <OpportunityCard
+                                              key={opp.id}
+                                              opportunity={opp}
+                                              author={users[authorId]}
+                                              currentUser={currentUser}
+                                              onDeleteOpportunity={postCardProps.onDeletePost}
+                                          />
+                                      );
+                                  })}
                                   {campusListings.length === 0 && (
                                        <div className="col-span-full text-center py-20 bg-card/50 rounded-3xl border-2 border-dashed border-border">
                                           <UsersIcon className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4"/>
@@ -180,7 +186,9 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = ({ currentUser, user
                               </div>
 
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                  {roadmaps.length > 0 ? roadmaps.map(map => (
+                                  {roadmaps.length > 0 ? roadmaps.map(map => {
+                                      const authorId = (map.authorId && typeof map.authorId === 'object') ? (map.authorId as any)._id : map.authorId;
+                                      return (
                                       <div key={map.id} className="bg-card rounded-3xl border border-border overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 relative group flex flex-col h-full">
                                           <div className={`h-3 bg-gradient-to-r ${map.color || 'from-blue-500 to-cyan-500'}`}></div>
                                           {(currentUser.id === map.authorId || currentUser.tag === 'Director') && (
@@ -203,7 +211,7 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = ({ currentUser, user
                                               <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6 bg-muted/30 p-3 rounded-xl border border-border/50">
                                                   <span className="flex items-center gap-1.5 font-medium"><ChartBarIcon className="w-4 h-4 text-emerald-500"/> {map.avgSalary}</span>
                                                   <div className="h-4 w-px bg-border"></div>
-                                                  <span className="flex items-center gap-1.5 font-medium"><UserPlusIcon className="w-4 h-4 text-blue-500"/> By: {users[map.authorId]?.name || 'User'}</span>
+                                                  <span className="flex items-center gap-1.5 font-medium"><UserPlusIcon className="w-4 h-4 text-blue-500"/> By: {users[authorId]?.name || 'User'}</span>
                                               </div>
 
                                               <div className="relative pt-4 mt-auto">
@@ -222,7 +230,8 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = ({ currentUser, user
                                               </div>
                                           </div>
                                       </div>
-                                  )) : (
+                                      );
+                                  }) : (
                                       <div className="col-span-full text-center py-20 bg-card/50 rounded-3xl border-2 border-dashed border-border">
                                           <MapIcon className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4"/>
                                           <h3 className="text-lg font-bold text-foreground">No roadmaps shared yet</h3>
@@ -268,15 +277,18 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = ({ currentUser, user
                                   </button>
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                  {projectListings.length > 0 ? projectListings.map(proj => (
-                                      <ProjectCard
-                                          key={proj.id}
-                                          project={proj}
-                                          author={users[proj.authorId]}
-                                          currentUser={currentUser}
-                                          onDeleteProject={postCardProps.onDeletePost}
-                                      />
-                                  )) : (
+                                  {projectListings.length > 0 ? projectListings.map(proj => {
+                                      const authorId = (proj.authorId && typeof proj.authorId === 'object') ? (proj.authorId as any)._id : proj.authorId;
+                                      return (
+                                          <ProjectCard
+                                              key={proj.id}
+                                              project={proj}
+                                              author={users[authorId]}
+                                              currentUser={currentUser}
+                                              onDeleteProject={postCardProps.onDeletePost}
+                                          />
+                                      );
+                                  }) : (
                                       <div className="col-span-full text-center py-20 bg-card/50 rounded-3xl border-2 border-dashed border-border">
                                           <CodeIcon className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4"/>
                                           <h3 className="text-lg font-bold text-foreground">No projects showcased</h3>

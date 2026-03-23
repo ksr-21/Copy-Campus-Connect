@@ -71,14 +71,15 @@ const StoriesReel: React.FC<StoriesReelProps> = ({ stories, users, groups, curre
 
         stories.forEach(story => {
             const isGroupStory = !!story.groupId;
-            const entityId = isGroupStory ? `group-${story.groupId}` : `user-${story.authorId}`;
-            const isViewed = story.viewedBy.includes(currentUser.id);
+            const authorId = (story.authorId && typeof story.authorId === 'object') ? (story.authorId as any)._id : story.authorId;
+            const entityId = isGroupStory ? `group-${story.groupId}` : `user-${authorId}`;
+            const isViewed = (story.viewedBy || []).map(uid => (uid && typeof uid === 'object') ? (uid as any)._id : uid).includes(currentUser.id);
 
              if (isGroupStory) {
                 const group = groups.find(g => g.id === story.groupId);
                 if (!group || !(currentUser.followingGroups || []).includes(group.id)) return;
             } else {
-                 const user = users[story.authorId];
+                 const user = users[authorId];
                  if (!user) return;
             }
 
@@ -90,7 +91,7 @@ const StoriesReel: React.FC<StoriesReelProps> = ({ stories, users, groups, curre
                         hasUnviewed: !isViewed, latestTimestamp: story.timestamp,
                     }
                 } else {
-                     const user = users[story.authorId]!;
+                     const user = users[authorId]!;
                      entities[entityId] = {
                         id: entityId, type: 'user', name: user.name, avatarUrl: user.avatarUrl,
                         hasUnviewed: !isViewed, latestTimestamp: story.timestamp,

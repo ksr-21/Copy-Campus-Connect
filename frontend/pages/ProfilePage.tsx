@@ -62,12 +62,25 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
     const isFacultyView = ['Teacher', 'HOD/Dean', 'Director', 'Super Admin'].includes(currentUser.tag);
 
     // --- Derived Data ---
-    const userPosts = useMemo(() => posts.filter(p => p.authorId === profileUser?.id && !p.isConfession && !p.isProject).sort((a, b) => b.timestamp - a.timestamp), [posts, profileUser]);
-    const userProjects = useMemo(() => posts.filter(p => p.authorId === profileUser?.id && p.isProject).sort((a, b) => b.timestamp - a.timestamp), [posts, profileUser]);
-    const userGroups = useMemo(() => groups.filter(g => profileUser?.followingGroups?.includes(g.id) || g.memberIds.includes(profileUser?.id)), [groups, profileUser]);
+    const userPosts = useMemo(() => posts.filter(p => {
+        const authorId = (p.authorId && typeof p.authorId === 'object') ? (p.authorId as any)._id : p.authorId;
+        return authorId === profileUser?.id && !p.isConfession && !p.isProject;
+    }).sort((a, b) => b.timestamp - a.timestamp), [posts, profileUser]);
+
+    const userProjects = useMemo(() => posts.filter(p => {
+        const authorId = (p.authorId && typeof p.authorId === 'object') ? (p.authorId as any)._id : p.authorId;
+        return authorId === profileUser?.id && p.isProject;
+    }).sort((a, b) => b.timestamp - a.timestamp), [posts, profileUser]);
+
+    const userGroups = useMemo(() => groups.filter(g => {
+        const followingGroups = (profileUser?.followingGroups || []).map(gid => (gid && typeof gid === 'object') ? (gid as any)._id : gid);
+        const memberIds = (g.memberIds || []).map(mid => (mid && typeof mid === 'object') ? (mid as any)._id : mid);
+        return followingGroups.includes(g.id) || memberIds.includes(profileUser?.id);
+    }), [groups, profileUser]);
     const savedPosts = useMemo(() => {
         if (!isOwnProfile) return [];
-        return posts.filter(p => currentUser.savedPosts?.includes(p.id));
+        const savedIds = (currentUser.savedPosts || []).map(sid => (sid && typeof sid === 'object') ? (sid as any)._id : sid);
+        return posts.filter(p => savedIds.includes(p.id));
     }, [posts, currentUser.savedPosts, isOwnProfile]);
 
     // Academic Stats Calculation
@@ -79,9 +92,11 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
         let presentClasses = 0;
         enrolledCourses.forEach(c => {
             c.attendanceRecords?.forEach(r => {
-                if (r.records[profileUser.id]) {
+                // Handle potential Map or Object for records
+                const recordData = r.records instanceof Map ? r.records.get(profileUser.id) : r.records[profileUser.id];
+                if (recordData) {
                     totalClasses++;
-                    if (r.records[profileUser.id].status === 'present') presentClasses++;
+                    if (recordData.status === 'present') presentClasses++;
                 }
             });
         });

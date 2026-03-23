@@ -9,8 +9,8 @@ const getPosts = async (req, res, next) => {
     const { collegeId } = req.query;
     const query = collegeId ? { collegeId } : {};
     const posts = await Post.find(query)
-        .populate('authorId', 'name avatarUrl department tag')
-        .populate('comments.authorId', 'name avatarUrl')
+        .populate('authorId', 'name profilePicture department tag')
+        .populate('comments.authorId', 'name profilePicture')
         .sort({ timestamp: -1 });
     res.status(200).json(posts);
   } catch (error) {

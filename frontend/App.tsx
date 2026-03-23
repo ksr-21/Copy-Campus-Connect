@@ -64,7 +64,7 @@ const App = () => {
             const data = await api.get('/auth/users', token);
             const usersData: { [key: string]: User } = { [currentUser.id]: currentUser };
             data.forEach((u: any) => {
-                usersData[u._id] = { ...u, id: u._id };
+                usersData[u._id] = { ...u, id: u._id, avatarUrl: u.profilePicture || u.avatarUrl };
             });
             setUsers(usersData);
         } catch (err) {
@@ -1143,6 +1143,47 @@ const App = () => {
       );
   }
 
+  if (currentPath === '#/hod' || currentPath.startsWith('#/director/view/')) {
+      let hodUser = currentUser;
+      let isViewingAsDirector = false;
+
+      if (currentPath.startsWith('#/director/view/') && currentUser.tag === 'Director') {
+          const hodId = currentPath.split('/director/view/')[1];
+          hodUser = users[hodId] || currentUser;
+          isViewingAsDirector = true;
+      }
+
+      return (
+          <HodPage
+            currentUser={hodUser}
+            onNavigate={setCurrentPath}
+            currentPath={currentPath}
+            isViewingAsDirector={isViewingAsDirector}
+            courses={courses}
+            onCreateCourse={handleCreateCourse}
+            onUpdateCourse={handleUpdateCourse}
+            onDeleteCourse={handleDeleteCourse}
+            notices={notices}
+            users={users}
+            allUsers={Object.values(users)}
+            onCreateNotice={handleCreateNotice}
+            onDeleteNotice={handleDeleteNotice}
+            departmentChats={departmentChats}
+            onSendDepartmentMessage={handleSendDepartmentMessage}
+            onCreateUser={handleCreateUser}
+            onCreateUsersBatch={handleCreateUsersBatch}
+            onApproveTeacherRequest={handleApproveTeacherRequest}
+            onDeclineTeacherRequest={handleDeclineTeacherRequest}
+            colleges={colleges}
+            onUpdateCourseFaculty={handleUpdateCourseFaculty}
+            onUpdateCollegeClasses={onUpdateCollegeClasses}
+            onDeleteUser={onDeleteUser}
+            onToggleFreezeUser={onToggleFreezeUser}
+            onUpdateUserRole={onUpdateUserRole}
+          />
+      );
+  }
+
   if (currentPath.startsWith('#/director')) {
       return (
           <DirectorPage
@@ -1185,47 +1226,6 @@ const App = () => {
                 onToggleSavePost: handleToggleSavePost,
                 groups: groups
             }}
-          />
-      );
-  }
-
-  if (currentPath === '#/hod' || currentPath.startsWith('#/director/view/')) {
-      let hodUser = currentUser;
-      let isViewingAsDirector = false;
-
-      if (currentPath.startsWith('#/director/view/') && currentUser.tag === 'Director') {
-          const hodId = currentPath.split('/director/view/')[1];
-          hodUser = users[hodId] || currentUser;
-          isViewingAsDirector = true;
-      }
-
-      return (
-          <HodPage
-            currentUser={hodUser}
-            onNavigate={setCurrentPath}
-            currentPath={currentPath}
-            isViewingAsDirector={isViewingAsDirector}
-            courses={courses}
-            onCreateCourse={handleCreateCourse}
-            onUpdateCourse={handleUpdateCourse}
-            onDeleteCourse={handleDeleteCourse}
-            notices={notices}
-            users={users}
-            allUsers={Object.values(users)}
-            onCreateNotice={handleCreateNotice}
-            onDeleteNotice={handleDeleteNotice}
-            departmentChats={departmentChats}
-            onSendDepartmentMessage={handleSendDepartmentMessage}
-            onCreateUser={handleCreateUser}
-            onCreateUsersBatch={handleCreateUsersBatch}
-            onApproveTeacherRequest={handleApproveTeacherRequest}
-            onDeclineTeacherRequest={handleDeclineTeacherRequest}
-            colleges={colleges}
-            onUpdateCourseFaculty={handleUpdateCourseFaculty}
-            onUpdateCollegeClasses={onUpdateCollegeClasses}
-            onDeleteUser={onDeleteUser}
-            onToggleFreezeUser={onToggleFreezeUser}
-            onUpdateUserRole={onUpdateUserRole}
           />
       );
   }

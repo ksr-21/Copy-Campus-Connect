@@ -21,7 +21,7 @@ const createCourse = async (req, res, next) => {
   try {
     const course = await Course.create({
       ...req.body,
-      facultyId: req.user.id,
+      facultyId: req.body.facultyId || req.user.id,
     });
     res.status(201).json(course);
   } catch (error) {

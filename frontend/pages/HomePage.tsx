@@ -78,7 +78,8 @@ const HomePage: React.FC<HomePageProps> = (props) => {
         } else {
             // 'For You' (Default)
             filteredPosts = filteredPosts.filter(p => {
-                const author = users[p.authorId];
+                const authorId = (p.authorId && typeof p.authorId === 'object') ? (p.authorId as any)._id : p.authorId;
+                const author = users[authorId];
                 const isMyDept = author && author.department === currentUser.department;
                 const isMyGroup = p.groupId && (currentUser.followingGroups || []).includes(p.groupId);
                 const isPublic = !p.groupId; // Assume non-group posts are public

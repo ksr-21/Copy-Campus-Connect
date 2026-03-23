@@ -45,7 +45,8 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
 
     const orderedEntities = useMemo(() => {
         const storiesByEntity = stories.reduce((acc, story) => {
-            const entityId = story.groupId ? `group-${story.groupId}` : `user-${story.authorId}`;
+            const authorId = (story.authorId && typeof story.authorId === 'object') ? (story.authorId as any)._id : story.authorId;
+            const entityId = story.groupId ? `group-${story.groupId}` : `user-${authorId}`;
             (acc[entityId] = acc[entityId] || []).push(story);
             return acc;
         }, {} as Record<string, Story[]>);
@@ -70,8 +71,8 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
             if (b === currentUserStoryId) return 1;
 
             // 3. Stories with unviewed content come after that.
-            const aHasUnviewed = storiesByEntity[a].some(s => !s.viewedBy.includes(currentUser.id));
-            const bHasUnviewed = storiesByEntity[b].some(s => !s.viewedBy.includes(currentUser.id));
+            const aHasUnviewed = storiesByEntity[a].some(s => !(s.viewedBy || []).map(uid => (uid && typeof uid === 'object') ? (uid as any)._id : uid).includes(currentUser.id));
+            const bHasUnviewed = storiesByEntity[b].some(s => !(s.viewedBy || []).map(uid => (uid && typeof uid === 'object') ? (uid as any)._id : uid).includes(currentUser.id));
             if (aHasUnviewed && !bHasUnviewed) return -1;
             if (!aHasUnviewed && bHasUnviewed) return 1;
 
@@ -103,7 +104,8 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
     const activeEntityStories = useMemo(() => {
         if (!activeEntityId) return [];
         return stories.filter(s => {
-            const storyEntityId = s.groupId ? `group-${s.groupId}` : `user-${s.authorId}`;
+            const authorId = (s.authorId && typeof s.authorId === 'object') ? (s.authorId as any)._id : s.authorId;
+            const storyEntityId = s.groupId ? `group-${s.groupId}` : `user-${authorId}`;
             return storyEntityId === activeEntityId;
         }).sort((a, b) => a.timestamp - b.timestamp);
     }, [stories, activeEntityId]);
@@ -142,7 +144,8 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
             const prevEntityIndex = currentEntityIndex - 1;
             const prevEntityId = orderedEntities[prevEntityIndex];
             const prevEntityStories = stories.filter(s => {
-                const storyEntityId = s.groupId ? `group-${s.groupId}` : `user-${s.authorId}`;
+                const authorId = (s.authorId && typeof s.authorId === 'object') ? (s.authorId as any)._id : s.authorId;
+                const storyEntityId = s.groupId ? `group-${s.groupId}` : `user-${authorId}`;
                 return storyEntityId === prevEntityId;
             });
             setCurrentEntityIndex(prevEntityIndex);
@@ -159,7 +162,7 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
     }, [activeEntityStories, currentStoryIndex, activeEntityId, goToNextStory]);
 
     useEffect(() => {
-        if (activeStory && !activeStory.viewedBy.includes(currentUser.id)) {
+        if (activeStory && !(activeStory.viewedBy || []).map(uid => (uid && typeof uid === 'object') ? (uid as any)._id : uid).includes(currentUser.id)) {
             onMarkStoryAsViewed(activeStory.id);
         }
     }, [activeStory, currentUser.id, onMarkStoryAsViewed]);
@@ -179,7 +182,7 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
     const handleReplySubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (replyText.trim() && activeEntity) {
-            const authorId = activeStory.authorId; // Reply to the person who posted it
+            const authorId = (activeStory.authorId && typeof activeStory.authorId === 'object') ? (activeStory.authorId as any)._id : activeStory.authorId;
             const text = isGroupStory ? `Replied to ${activeEntity.name}'s story: ${replyText.trim()}` : replyText.trim();
             onReplyToStory(authorId, text);
             setReplyText('');
@@ -192,7 +195,8 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
     }
 
     const textClasses = `${activeStory.fontSize || 'text-3xl'} ${activeStory.fontFamily || 'font-sans'} ${activeStory.fontWeight || 'font-bold'}`;
-    const postingAdmin = isGroupStory ? users[activeStory.authorId] : null;
+    const activeStoryAuthorId = (activeStory.authorId && typeof activeStory.authorId === 'object') ? (activeStory.authorId as any)._id : activeStory.authorId;
+    const postingAdmin = isGroupStory ? users[activeStoryAuthorId] : null;
 
     return (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex justify-center items-center animate-fade-in" role="dialog" aria-modal="true">
