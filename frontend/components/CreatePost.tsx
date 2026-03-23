@@ -10,6 +10,7 @@ interface CreatePostProps {
     content: string;
     mediaDataUrls?: string[] | null;
     mediaType?: 'image' | 'video' | null;
+    isEvent?: boolean;
     eventDetails?: {
         title: string;
         date: string;
@@ -162,6 +163,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
             content: finalContent,
             mediaDataUrls,
             mediaType: determinedMediaType,
+            isEvent: postType === 'event',
             eventDetails: finalEventDetails,
             groupId,
             isConfession: isConfessionMode,

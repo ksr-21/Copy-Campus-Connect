@@ -23,7 +23,7 @@ interface HomePageProps {
   notices: Notice[];
   onNavigate: (path: string) => void;
   onLogout: () => void;
-  onAddPost: (postDetails: any) => void;
+  onAddPost: (postDetails: any) => Promise<any>;
   onAddStory: (storyDetails: any) => void;
   onMarkStoryAsViewed: (storyId: string) => void;
   onDeleteStory: (storyId: string) => void;

@@ -31,7 +31,7 @@ const InlineCreatePost: React.FC<InlineCreatePostProps> = ({ user, onOpenCreateM
             {/* Bottom Row: Action Buttons */}
             <div className="flex items-center justify-between pt-1 sm:px-2">
                 <button
-                    onClick={() => setComingSoonFeature('Media')}
+                    onClick={() => onOpenCreateModal('post')}
                     className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group flex-1 justify-center sm:justify-start"
                 >
                     <PhotoIcon className="w-6 h-6 text-sky-500" />
